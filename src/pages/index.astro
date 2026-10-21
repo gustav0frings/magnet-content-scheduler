@@ -434,68 +434,25 @@ const boot = {
               }
               body.appendChild(meta);
 
-              const accountsField = document.createElement("label");
-              accountsField.className = "field card-accounts";
-              const accountsLabel = document.createElement("span");
-              accountsLabel.setAttribute("data-i18n", "accountsOnVideo");
-              accountsLabel.textContent = m.accountsOnVideo;
-              accountsField.appendChild(accountsLabel);
-              const accountsSelect = document.createElement("select");
-              accountsSelect.className = "account-multi";
-              accountsSelect.multiple = true;
-              accountsSelect.size = Math.min(4, Math.max(2, devices.length));
-              for (const d of devices) {
-                const opt = document.createElement("option");
-                opt.value = d.id;
-                opt.textContent = `${flag(d.country)} ${d.name}`;
-                opt.selected = accountIds.includes(d.id);
-                accountsSelect.appendChild(opt);
-              }
               const chips = document.createElement("div");
               chips.className = "account-chips";
               for (const d of linked) {
-                chips.appendChild(accountLabel(d));
+                const chip = accountLabel(d);
+                const country = document.createElement("span");
+                country.className = "chip-flag";
+                country.textContent = flag(d.country);
+                chip.prepend(country);
+                chips.appendChild(chip);
+              }
+              if (linked.length === 0 && accountIds.length > 0) {
+                for (const id of accountIds) {
+                  const fallback = document.createElement("span");
+                  fallback.className = "account-with-icon";
+                  fallback.textContent = id;
+                  chips.appendChild(fallback);
+                }
               }
               body.appendChild(chips);
-              accountsSelect.addEventListener("change", async () => {
-                const selected = [...accountsSelect.selectedOptions].map(
-                  (o) => o.value,
-                );
-                if (selected.length === 0) {
-                  for (const id of accountIds) {
-                    const opt = [...accountsSelect.options].find((o) => o.value === id);
-                    if (opt) opt.selected = true;
-                  }
-                  return;
-                }
-                accountsSelect.disabled = true;
-                try {
-                  const res = await fetch("/api/items/accounts", {
-                    method: "POST",
-                    headers: { "content-type": "application/json" },
-                    body: JSON.stringify({ id: item.id, deviceIds: selected }),
-                  });
-                  const data = await res.json();
-                  if (!res.ok) throw new Error(data.error || "failed");
-                  item.deviceIds = data.item.deviceIds;
-                  item.deviceId = data.item.deviceId;
-                  item.country = data.item.country;
-                  const idx = items.findIndex((x) => x.id === item.id);
-                  if (idx >= 0) items[idx] = { ...items[idx], ...data.item };
-                  renderCalendar();
-                  applyI18n();
-                  applyFilters();
-                } catch {
-                  for (const opt of accountsSelect.options) {
-                    opt.selected = accountIds.includes(opt.value);
-                  }
-                  alert(m.accountSaveError || "Could not save");
-                } finally {
-                  accountsSelect.disabled = false;
-                }
-              });
-              accountsField.appendChild(accountsSelect);
-              body.appendChild(accountsField);
 
               const publishRow = document.createElement("div");
               publishRow.className = "publish-row";
