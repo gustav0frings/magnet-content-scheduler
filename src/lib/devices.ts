@@ -23,16 +23,26 @@ export const DEFAULT_DEVICES: Device[] = [
 /** @deprecated use listDevices() — kept for static fallbacks in markup */
 export const DEVICES = DEFAULT_DEVICES;
 
-export function slugifyDeviceId(name: string, country: CountryCode): string {
-  const base = name
+/** Lowercase + spaces → dashes (and strip other noise). Used for display name + id. */
+export function normalizeDeviceName(name: string): string {
+  return name
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 40);
-  const slug = base || "device";
-  return `${slug}-${country.toLowerCase()}`;
+}
+
+export function slugifyDeviceId(name: string, country: CountryCode): string {
+  const base = normalizeDeviceName(name) || "device";
+  const suffix = country.toLowerCase();
+  // Avoid "slim-fr-fr" when the name already ends with the country
+  if (base === suffix || base.endsWith(`-${suffix}`)) return base;
+  return `${base}-${suffix}`;
 }
 
 export async function listDevices(): Promise<Device[]> {
@@ -62,7 +72,7 @@ export async function registerDevice(input: {
   name: string;
   country: CountryCode;
 }): Promise<Device> {
-  const name = input.name.trim();
+  const name = normalizeDeviceName(input.name);
   if (!name) throw new Error("name required");
   if (!COUNTRY_CODES.includes(input.country)) {
     throw new Error("invalid country");

@@ -473,8 +473,27 @@ const boot = {
         }
       });
 
+      function normalizeNameLive(raw) {
+        return raw
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9-]+/g, "-")
+          .replace(/-+/g, "-");
+      }
+
+      regName.addEventListener("input", () => {
+        const start = regName.selectionStart;
+        const next = normalizeNameLive(regName.value);
+        if (next !== regName.value) {
+          regName.value = next;
+          const pos = Math.min(start, next.length);
+          regName.setSelectionRange(pos, pos);
+        }
+      });
+
       regSubmit.addEventListener("click", async () => {
-        const name = regName.value.trim();
+        const name = normalizeNameLive(regName.value).replace(/^-|-$/g, "");
+        regName.value = name;
         const country = regCountry.value;
         regError.hidden = true;
         if (!name) {
