@@ -28,7 +28,7 @@ animations/  →  CLI (AI)  →  UploadThing (fichier)
 
 Defaults dans le code (`slim-fr`, `slim-us`) + enregistrement libre au premier lancement (modal → « Register a new device »).
 
-Liste complète sur UploadThing (`customId`: `magnet-devices-v2`). Cookie navigateur pour le device choisi. Chaque item porte `deviceId` + `country`.
+Liste complète sur UploadThing (`magnet-devices.json`, delete+reupload by filename — pas de customId, sinon 409). Cookie pour le device choisi.
 
 ## Calendrier UI
 
@@ -49,8 +49,8 @@ npm run send -- --to slim-fr --at "2026-10-21 09:00" --title "tinder reverse" ./
 ```
 
 1. CLI upload le mp4 → UploadThing (`ufsUrl` + `key`).
-2. CLI lit/écrit le JSON de schedule sur UploadThing (`customId`: `magnet-content-schedule`) avec `deviceId`, `country`, `title`, `publishAt`.
-3. La webapp Vercel fetch ce JSON à chaque requête. Aucun redeploy.
+2. CLI lit/écrit `magnet-schedule.json` sur UploadThing avec `deviceId`, `country`, `title`, `publishAt`.
+3. La webapp Vercel relit ce JSON à chaque requête. Aucun redeploy.
 
 ## Inbox téléphone
 

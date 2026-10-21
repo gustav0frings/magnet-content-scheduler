@@ -1,8 +1,4 @@
-import {
-  DEVICES_CUSTOM_ID,
-  readJsonFile,
-  uploadJsonFile,
-} from "./uploadthing";
+import { DEVICES_FILE, readJsonFile, uploadJsonFile } from "./uploadthing";
 
 export type CountryCode = "FR" | "US" | "UK";
 
@@ -43,7 +39,7 @@ export function slugifyDeviceId(name: string, country: CountryCode): string {
 }
 
 export async function listDevices(): Promise<Device[]> {
-  const remote = await readJsonFile<Device[]>(DEVICES_CUSTOM_ID);
+  const remote = await readJsonFile<Device[]>(DEVICES_FILE);
   if (!remote || !Array.isArray(remote) || remote.length === 0) {
     return [...DEFAULT_DEVICES];
   }
@@ -62,7 +58,7 @@ export async function getDevice(id: string): Promise<Device | undefined> {
 }
 
 export async function saveDevices(devices: Device[]): Promise<void> {
-  await uploadJsonFile(DEVICES_CUSTOM_ID, "devices.json", devices);
+  await uploadJsonFile(DEVICES_FILE, devices);
 }
 
 export async function registerDevice(input: {

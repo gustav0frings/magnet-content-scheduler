@@ -1,18 +1,18 @@
 import type { ScheduleItem } from "./types";
 import {
-  SCHEDULE_CUSTOM_ID,
+  SCHEDULE_FILE,
   getUtApi,
   readJsonFile,
   uploadJsonFile,
 } from "./uploadthing";
 
 async function readFromUploadThing(): Promise<ScheduleItem[]> {
-  const data = await readJsonFile<ScheduleItem[]>(SCHEDULE_CUSTOM_ID);
+  const data = await readJsonFile<ScheduleItem[]>(SCHEDULE_FILE);
   return data ?? [];
 }
 
 async function writeToUploadThing(items: ScheduleItem[]): Promise<void> {
-  await uploadJsonFile(SCHEDULE_CUSTOM_ID, "schedule.json", items);
+  await uploadJsonFile(SCHEDULE_FILE, items);
 }
 
 export async function listItems(): Promise<ScheduleItem[]> {
