@@ -94,6 +94,78 @@ select {
   background-repeat: no-repeat;
 }
 
+.account-picker {
+  position: relative;
+  min-width: 14rem;
+}
+
+.account-picker-btn {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.65rem 2rem 0.65rem 0.85rem;
+  font: inherit;
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 55%,
+    calc(100% - 9px) 55%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.account-picker-current,
+.account-picker-menu [role="option"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.account-picker-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 40%);
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.account-picker-menu[hidden] {
+  display: none !important;
+}
+
+.account-picker-menu [role="option"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.account-picker-menu [role="option"]:hover,
+.account-picker-menu [role="option"][aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg));
+}
+
 .week-nav {
   display: flex;
   flex-wrap: wrap;
@@ -152,13 +224,67 @@ select {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
-  margin: 0 0 0.6rem;
+  margin: 0;
   padding-bottom: 0.35rem;
   border-bottom: 1px solid var(--border);
 }
 
 .day.today h2 {
   color: var(--accent);
+}
+
+.day-gaps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.45rem;
+  margin: 0.4rem 0 0.65rem;
+  min-width: 0;
+}
+
+.day-gaps[hidden] {
+  display: none;
+}
+
+.day-gaps-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--muted) 75%, transparent);
+  margin-right: 0.1rem;
+}
+
+.day-gap-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 11rem;
+  padding: 0.1rem 0.35rem 0.1rem 0.25rem;
+  border-radius: 999px;
+  border: 1px dashed color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  opacity: 0.85;
+}
+
+.day-gap-flag {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.day-gap-chip .platform-icon {
+  width: 0.7rem;
+  height: 0.7rem;
+  opacity: 0.7;
+}
+
+.day-gap-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .day-grid {

@@ -64,6 +64,7 @@ export const messages = {
     accountEmpty: "No accounts yet.",
     accountSaveError: "Could not save",
     accountsOnVideo: "Accounts",
+    dayNoContent: "No content",
   },
   fr: {
     title: "Content Scheduler",
@@ -120,5 +121,6 @@ export const messages = {
     accountEmpty: "Aucun compte pour l’instant.",
     accountSaveError: "Enregistrement impossible",
     accountsOnVideo: "Comptes",
+    dayNoContent: "Sans contenu",
   },
 } as const;

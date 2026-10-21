@@ -65,14 +65,25 @@ const boot = {
       <div class="pickers">
         <label class="field">
           <span data-i18n="device">Account</span>
-          <select id="device" aria-label="Account">
-            <option value="" data-i18n-option="allDevices">All accounts</option>
-            {devices.map((d) => (
-              <option value={d.id}>
-                {countryFlag(d.country)} {d.name}
-              </option>
-            ))}
-          </select>
+          <div class="account-picker" id="device-picker">
+            <button
+              type="button"
+              class="account-picker-btn"
+              id="device-picker-btn"
+              aria-label="Account"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+            >
+              <span class="account-picker-current" id="device-picker-current"></span>
+            </button>
+            <ul
+              class="account-picker-menu"
+              id="device-picker-menu"
+              role="listbox"
+              hidden
+            ></ul>
+            <input type="hidden" id="device" value="" />
+          </div>
         </label>
         <label class="field">
           <span data-i18n="language">Language</span>
@@ -353,6 +364,45 @@ const boot = {
           h2.setAttribute("data-day-label", "");
           section.appendChild(h2);
 
+          const coveredIds = new Set();
+          for (const it of dayItems) {
+            const ids = it.deviceIds?.length ? it.deviceIds : [it.deviceId];
+            for (const id of ids) if (id) coveredIds.add(id);
+          }
+          const missingAccounts = devices.filter((d) => {
+            if (d.warmupStartedAt) return false;
+            if (deviceFilter && d.id !== deviceFilter) return false;
+            if (countryFilter && d.country !== countryFilter) return false;
+            return !coveredIds.has(d.id);
+          });
+          const gaps = document.createElement("div");
+          gaps.className = "day-gaps";
+          gaps.hidden = missingAccounts.length === 0;
+          const gapsLabel = document.createElement("span");
+          gapsLabel.className = "day-gaps-label";
+          gapsLabel.setAttribute("data-i18n", "dayNoContent");
+          gapsLabel.textContent = m.dayNoContent;
+          gaps.appendChild(gapsLabel);
+          for (const d of missingAccounts) {
+            const chip = document.createElement("span");
+            chip.className = "day-gap-chip";
+            chip.title = d.name;
+            const flagEl = document.createElement("span");
+            flagEl.className = "day-gap-flag";
+            flagEl.textContent = flag(d.country);
+            chip.appendChild(flagEl);
+            const icon = document.createElement("span");
+            icon.className = `platform-icon platform-icon--${d.platform === "tiktok" ? "tiktok" : "instagram"}`;
+            icon.setAttribute("aria-hidden", "true");
+            chip.appendChild(icon);
+            const name = document.createElement("span");
+            name.className = "day-gap-name";
+            name.textContent = d.name;
+            chip.appendChild(name);
+            gaps.appendChild(chip);
+          }
+          section.appendChild(gaps);
+
           const empty = document.createElement("p");
           empty.className = "empty";
           empty.setAttribute("data-empty", "");
@@ -534,7 +584,11 @@ const boot = {
       const stepDevice = document.getElementById("step-device");
       const langNext = document.getElementById("lang-next");
       const deviceDone = document.getElementById("device-done");
-      const deviceSelect = document.getElementById("device");
+      const deviceInput = document.getElementById("device");
+      const devicePicker = document.getElementById("device-picker");
+      const devicePickerBtn = document.getElementById("device-picker-btn");
+      const devicePickerCurrent = document.getElementById("device-picker-current");
+      const devicePickerMenu = document.getElementById("device-picker-menu");
       const countrySelect = document.getElementById("country");
       const langSelect = document.getElementById("lang");
       const hint = document.getElementById("range-hint");
@@ -552,6 +606,15 @@ const boot = {
       const regSubmit = document.getElementById("reg-submit");
       const regBack = document.getElementById("reg-back");
       const regError = document.getElementById("reg-error");
+
+      const deviceSelect = {
+        get value() {
+          return deviceInput.value;
+        },
+        set value(next) {
+          setAccountPickerValue(next);
+        },
+      };
 
       function showPickDevice() {
         registerForm.hidden = true;
@@ -578,26 +641,63 @@ const boot = {
         return tAll[lang || pendingLang || "en"];
       }
 
+      function fillAccountPickerRow(el, device) {
+        el.replaceChildren();
+        if (!device) {
+          el.textContent = t().allDevices;
+          return;
+        }
+        const flagSpan = document.createElement("span");
+        flagSpan.className = "chip-flag";
+        flagSpan.textContent = flag(device.country);
+        el.append(flagSpan, platformIconEl(device.platform), document.createTextNode(device.name));
+      }
+
+      function closeAccountPicker() {
+        devicePickerMenu.hidden = true;
+        devicePickerBtn.setAttribute("aria-expanded", "false");
+      }
+
+      function setAccountPickerValue(next, { silent = false } = {}) {
+        const known = !next || devices.some((d) => d.id === next);
+        const value = known ? next || "" : "";
+        deviceInput.value = value;
+        const device = devices.find((d) => d.id === value);
+        fillAccountPickerRow(devicePickerCurrent, device || null);
+        devicePickerMenu.querySelectorAll("[role=option]").forEach((opt) => {
+          opt.setAttribute("aria-selected", opt.dataset.value === value ? "true" : "false");
+        });
+        if (!silent) {
+          deviceInput.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+
       function syncDeviceSelect() {
-        const allLabel = t().allDevices;
-        const current = deviceSelect.value;
-        deviceSelect.innerHTML = "";
-        const allOpt = document.createElement("option");
-        allOpt.value = "";
+        const current = deviceInput.value;
+        devicePickerMenu.innerHTML = "";
+
+        const allOpt = document.createElement("li");
+        allOpt.setAttribute("role", "option");
+        allOpt.dataset.value = "";
         allOpt.setAttribute("data-i18n-option", "allDevices");
-        allOpt.textContent = allLabel;
-        deviceSelect.appendChild(allOpt);
+        allOpt.textContent = t().allDevices;
+        devicePickerMenu.appendChild(allOpt);
+
         for (const d of devices) {
-          const opt = document.createElement("option");
-          opt.value = d.id;
-          opt.textContent = `${flag(d.country)} ${d.name}`;
-          deviceSelect.appendChild(opt);
+          const opt = document.createElement("li");
+          opt.setAttribute("role", "option");
+          opt.dataset.value = d.id;
+          fillAccountPickerRow(opt, d);
+          devicePickerMenu.appendChild(opt);
         }
-        if ([...deviceSelect.options].some((o) => o.value === current)) {
-          deviceSelect.value = current;
-        } else if (deviceId) {
-          deviceSelect.value = deviceId;
-        }
+
+        const next =
+          devices.some((d) => d.id === current) || current === ""
+            ? current
+            : deviceId && devices.some((d) => d.id === deviceId)
+              ? deviceId
+              : "";
+        setAccountPickerValue(next, { silent: true });
 
         const countries = [...new Set(devices.map((d) => d.country))];
         const cCur = countrySelect.value;
@@ -868,7 +968,28 @@ const boot = {
         finishWithDevice(pendingDevice);
       });
 
-      deviceSelect.addEventListener("change", () => {
+      devicePickerBtn.addEventListener("click", () => {
+        const open = devicePickerMenu.hidden;
+        if (open) {
+          devicePickerMenu.hidden = false;
+          devicePickerBtn.setAttribute("aria-expanded", "true");
+        } else {
+          closeAccountPicker();
+        }
+      });
+
+      devicePickerMenu.addEventListener("click", (event) => {
+        const opt = event.target.closest("[role=option]");
+        if (!opt) return;
+        setAccountPickerValue(opt.dataset.value || "");
+        closeAccountPicker();
+      });
+
+      document.addEventListener("click", (event) => {
+        if (!devicePicker.contains(event.target)) closeAccountPicker();
+      });
+
+      deviceInput.addEventListener("change", () => {
         deviceId = deviceSelect.value;
         // Keep the last real device in the cookie — "all devices" is a view
         // filter only, otherwise the next visit thinks setup is missing.
