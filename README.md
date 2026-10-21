@@ -48,7 +48,7 @@ npm run send -- --to slim-fr --at "2026-10-21 09:00" --title "tinder reverse" \
 
 `--to` is a device **id** from that list. `--at` is publish time. Updates UploadThing; live site picks it up on next load.
 
-Purge videos older than 7 days (files + schedule rows on UploadThing):
+Every `send` also runs a routine purge of videos older than **7 days**. Manual:
 
 ```bash
 npm run clear-old

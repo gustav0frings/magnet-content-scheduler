@@ -14,7 +14,9 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { UTApi, UTFile } from "uploadthing/server";
 import { listDevices } from "../src/lib/devices";
-import { addItem } from "../src/lib/schedule";
+import { addItem, clearOlderThan } from "../src/lib/schedule";
+
+const AUTO_CLEAR_DAYS = 7;
 
 function usage(deviceIds?: string[]): never {
   console.error(`Usage:
@@ -101,6 +103,21 @@ async function main() {
   console.log("Scheduled:", item);
   console.log(`Device: ${device.name} (${device.country})`);
   console.log(`Inbox: /api/inbox/${device.id}`);
+
+  console.log(`Clearing videos older than ${AUTO_CLEAR_DAYS}d…`);
+  try {
+    const { removed, kept } = await clearOlderThan(AUTO_CLEAR_DAYS);
+    if (removed.length === 0) {
+      console.log(`  nothing to purge (${kept} kept)`);
+    } else {
+      console.log(`  removed ${removed.length}, ${kept} remaining`);
+      for (const r of removed) {
+        console.log(`  - ${r.publishAt}  ${r.deviceId}  ${r.title}`);
+      }
+    }
+  } catch (err) {
+    console.error("  clear-old failed (send still ok):", err);
+  }
 }
 
 main().catch((err) => {
