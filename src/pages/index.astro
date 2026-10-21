@@ -3,6 +3,7 @@ export const prerender = false;
 
 import "../styles/global.css";
 import { DEVICES, countries, getDevice } from "../lib/devices";
+import { COOKIE_DEVICE, COOKIE_LANG, messages, UI_LANGS } from "../lib/i18n";
 import { inDefaultWindow, listItems } from "../lib/schedule";
 import type { ScheduleItem } from "../lib/types";
 
@@ -10,33 +11,45 @@ const all = inDefaultWindow(await listItems());
 
 const start = new Date();
 start.setHours(0, 0, 0, 0);
-const days: { key: string; label: string; isToday: boolean; items: ScheduleItem[] }[] =
-  [];
+const days: {
+  key: string;
+  date: Date;
+  isToday: boolean;
+  items: ScheduleItem[];
+}[] = [];
 for (let i = 0; i < 8; i++) {
   const d = new Date(start);
   d.setDate(d.getDate() + i);
-  const key = d.toISOString().slice(0, 10);
-  const label = d.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
+  // Use local Y-M-D so publishAt wall-clock days match the calendar
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
   days.push({
-    key,
-    label: i === 0 ? `Today · ${label}` : label,
+    key: `${y}-${m}-${day}`,
+    date: d,
     isToday: i === 0,
     items: [],
   });
 }
 
 for (const item of all) {
-  const key = item.publishAt.slice(0, 10);
-  const day = days.find((d) => d.key === key);
-  if (day) day.items.push(item);
+  const local = new Date(item.publishAt);
+  const y = local.getFullYear();
+  const m = String(local.getMonth() + 1).padStart(2, "0");
+  const day = String(local.getDate()).padStart(2, "0");
+  const key = `${y}-${m}-${day}`;
+  const bucket = days.find((d) => d.key === key);
+  if (bucket) bucket.items.push(item);
 }
 
 const countryList = countries();
-const deviceJson = JSON.stringify(DEVICES);
+const boot = {
+  devices: DEVICES,
+  langs: UI_LANGS,
+  messages,
+  cookieLang: COOKIE_LANG,
+  cookieDevice: COOKIE_DEVICE,
+};
 ---
 
 <html lang="en">
@@ -52,26 +65,43 @@ const deviceJson = JSON.stringify(DEVICES);
     />
   </head>
   <body>
-    <div class="wrap">
+    <div class="wrap" id="app" hidden>
       <header>
-        <h1>Content Scheduler</h1>
-        <p>Pick your device — calendar shows today + next 7 days.</p>
+        <div class="header-row">
+          <div>
+            <h1 data-i18n="title">Content Scheduler</h1>
+            <p data-i18n="subtitle">Your videos for the next 7 days.</p>
+          </div>
+          <button type="button" class="linkish" id="reopen-setup" data-i18n="changeSetup">
+            Change device / language
+          </button>
+        </div>
       </header>
 
       <div class="pickers">
         <label class="field">
-          Device
+          <span data-i18n="device">Device</span>
           <select id="device" aria-label="Device">
-            <option value="">All devices</option>
+            <option value="" data-i18n-option="allDevices">All devices</option>
             {DEVICES.map((d) => (
-              <option value={d.id}>{d.name} ({d.country})</option>
+              <option value={d.id}>
+                {d.name} ({d.country})
+              </option>
             ))}
           </select>
         </label>
         <label class="field">
-          Country
+          <span data-i18n="language">Language</span>
+          <select id="lang" aria-label="Language">
+            {UI_LANGS.map((l) => (
+              <option value={l.id}>{l.label}</option>
+            ))}
+          </select>
+        </label>
+        <label class="field">
+          <span data-i18n="country">Country</span>
           <select id="country" aria-label="Country">
-            <option value="">All countries</option>
+            <option value="" data-i18n-option="allCountries">All countries</option>
             {countryList.map((c) => (
               <option value={c}>{c}</option>
             ))}
@@ -84,33 +114,37 @@ const deviceJson = JSON.stringify(DEVICES);
       <div id="calendar">
         {
           days.map((day) => (
-            <section class:list={["day", { today: day.isToday }]} data-day={day.key}>
-              <h2>{day.label}</h2>
+            <section
+              class:list={["day", { today: day.isToday }]}
+              data-day={day.key}
+              data-is-today={day.isToday ? "1" : "0"}
+              data-date={day.date.toISOString()}
+            >
+              <h2 data-day-label></h2>
               {day.items.length === 0 ? (
-                <p class="empty" data-empty>
+                <p class="empty" data-empty data-i18n="empty">
                   —
                 </p>
               ) : (
                 day.items.map((item) => {
                   const device = getDevice(item.deviceId);
-                  const time = new Date(item.publishAt).toLocaleTimeString(
-                    "en-GB",
-                    { hour: "2-digit", minute: "2-digit" },
-                  );
                   return (
                     <article
                       class="card"
                       data-device={item.deviceId}
                       data-country={item.country}
+                      data-publish={item.publishAt}
                     >
                       <strong>{item.title}</strong>
                       <div class="meta">
-                        <span>{time}</span>
+                        <span data-time></span>
                         <span class={`badge ${item.country}`}>{item.country}</span>
                         <span>{device?.name ?? item.deviceId}</span>
-                        {item.savedAt ? <span>saved</span> : null}
+                        {item.savedAt ? (
+                          <span data-i18n="saved">saved</span>
+                        ) : null}
                       </div>
-                      <a class="download" href={item.url} download>
+                      <a class="download" href={item.url} download data-i18n="download">
                         Download
                       </a>
                     </article>
@@ -123,39 +157,146 @@ const deviceJson = JSON.stringify(DEVICES);
       </div>
 
       <p class="footer">
-        Inbox API: <code>/api/inbox/&lt;deviceId&gt;</code>
+        <span data-i18n="footer">Inbox API</span>: <code>/api/inbox/&lt;deviceId&gt;</code>
       </p>
     </div>
 
-    <script define:vars={{ deviceJson }}>
-      const STORAGE_DEVICE = "magnet-scheduler-device";
-      const STORAGE_COUNTRY = "magnet-scheduler-country";
-      const devices = JSON.parse(deviceJson);
+    <div class="modal" id="setup-modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <h2 id="modal-title" data-i18n="modalTitle">Welcome</h2>
+
+        <div class="modal-step" id="step-lang">
+          <p class="modal-label" data-i18n="modalLang">Choose your language</p>
+          <div class="choice-grid" id="lang-choices">
+            {UI_LANGS.map((l) => (
+              <button type="button" class="choice" data-lang={l.id}>
+                {l.label}
+              </button>
+            ))}
+          </div>
+          <button type="button" class="primary" id="lang-next" disabled data-i18n="modalNext">
+            Next
+          </button>
+        </div>
+
+        <div class="modal-step" id="step-device" hidden>
+          <p class="modal-label" data-i18n="modalDevice">Choose your device</p>
+          <div class="choice-grid" id="device-choices">
+            {DEVICES.map((d) => (
+              <button type="button" class="choice" data-device={d.id}>
+                <strong>{d.name}</strong>
+                <span>{d.country}</span>
+              </button>
+            ))}
+          </div>
+          <button type="button" class="primary" id="device-done" disabled data-i18n="modalContinue">
+            Continue
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script define:vars={{ boot }}>
+      const cfg = boot;
+      const devices = cfg.devices;
+      const tAll = cfg.messages;
+
+      function fill(template, vars) {
+        return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+      }
+
+      function getCookie(name) {
+        const m = document.cookie.match(
+          new RegExp("(?:^|; )" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "=([^;]*)"),
+        );
+        return m ? decodeURIComponent(m[1]) : "";
+      }
+
+      function setCookie(name, value, days = 400) {
+        const maxAge = days * 24 * 60 * 60;
+        document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+      }
+
+      function localeFor(lang) {
+        return lang === "fr" ? "fr-FR" : "en-GB";
+      }
+
+      let lang = getCookie(cfg.cookieLang) === "fr" ? "fr" : getCookie(cfg.cookieLang) === "en" ? "en" : "";
+      let deviceId = getCookie(cfg.cookieDevice) || "";
+      let pendingLang = lang || "en";
+      let pendingDevice = deviceId;
+
+      const app = document.getElementById("app");
+      const modal = document.getElementById("setup-modal");
+      const stepLang = document.getElementById("step-lang");
+      const stepDevice = document.getElementById("step-device");
+      const langNext = document.getElementById("lang-next");
+      const deviceDone = document.getElementById("device-done");
       const deviceSelect = document.getElementById("device");
       const countrySelect = document.getElementById("country");
+      const langSelect = document.getElementById("lang");
       const hint = document.getElementById("range-hint");
 
-      const savedDevice = localStorage.getItem(STORAGE_DEVICE) || "";
-      const savedCountry = localStorage.getItem(STORAGE_COUNTRY) || "";
-      if ([...deviceSelect.options].some((o) => o.value === savedDevice)) {
-        deviceSelect.value = savedDevice;
-      }
-      if ([...countrySelect.options].some((o) => o.value === savedCountry)) {
-        countrySelect.value = savedCountry;
+      function t() {
+        return tAll[lang || pendingLang || "en"];
       }
 
-      function apply() {
-        const deviceId = deviceSelect.value;
+      function applyI18n() {
+        const m = t();
+        const loc = localeFor(lang || pendingLang || "en");
+        document.documentElement.lang = lang || pendingLang || "en";
+
+        document.querySelectorAll("[data-i18n]").forEach((el) => {
+          const key = el.getAttribute("data-i18n");
+          const val = m[key];
+          if (typeof val === "string") el.textContent = val;
+        });
+
+        document.querySelectorAll("[data-i18n-option]").forEach((el) => {
+          const key = el.getAttribute("data-i18n-option");
+          const val = m[key];
+          if (typeof val === "string") el.textContent = val;
+        });
+
+        document.querySelectorAll("[data-day-label]").forEach((h2) => {
+          const section = h2.closest(".day");
+          const iso = section.getAttribute("data-date");
+          const isToday = section.getAttribute("data-is-today") === "1";
+          const d = new Date(iso);
+          const label = d.toLocaleDateString(loc, {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+          });
+          h2.textContent = isToday ? `${m.today} · ${label}` : label;
+        });
+
+        document.querySelectorAll(".card").forEach((card) => {
+          const publish = card.getAttribute("data-publish");
+          const timeEl = card.querySelector("[data-time]");
+          if (timeEl && publish) {
+            timeEl.textContent = new Date(publish).toLocaleTimeString(loc, {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+          }
+        });
+
+        if (langSelect && lang) langSelect.value = lang;
+      }
+
+      function applyFilters() {
         const country = countrySelect.value;
-        localStorage.setItem(STORAGE_DEVICE, deviceId);
-        localStorage.setItem(STORAGE_COUNTRY, country);
-
+        const m = t();
         const device = devices.find((d) => d.id === deviceId);
+
+        if (deviceSelect) deviceSelect.value = deviceId || "";
+
         hint.textContent = device
-          ? `Showing ${device.name} · ${device.country}`
+          ? fill(m.showingDevice, { name: device.name, country: device.country })
           : country
-            ? `Showing country ${country}`
-            : "Showing all devices";
+            ? fill(m.showingCountry, { country })
+            : m.showingAll;
 
         document.querySelectorAll(".card").forEach((card) => {
           const okDevice = !deviceId || card.dataset.device === deviceId;
@@ -168,19 +309,108 @@ const deviceJson = JSON.stringify(DEVICES);
           const visible = cards.filter((c) => !c.hidden);
           const empty = section.querySelector("[data-empty]");
           if (empty) empty.hidden = visible.length > 0;
-          else if (cards.length && visible.length === 0) {
-            // day had cards but all filtered out — leave cards hidden
-          }
         });
       }
 
-      deviceSelect.addEventListener("change", () => {
-        const d = devices.find((x) => x.id === deviceSelect.value);
-        if (d) countrySelect.value = d.country;
-        apply();
+      function showApp() {
+        modal.hidden = true;
+        app.hidden = false;
+        applyI18n();
+        applyFilters();
+      }
+
+      function openSetup(force = false) {
+        const needLang = force || !getCookie(cfg.cookieLang);
+        const needDevice = force || !getCookie(cfg.cookieDevice);
+        if (!needLang && !needDevice && !force) {
+          showApp();
+          return;
+        }
+        app.hidden = true;
+        modal.hidden = false;
+        pendingLang = lang || "en";
+        pendingDevice = deviceId || "";
+        stepLang.hidden = false;
+        stepDevice.hidden = true;
+        langNext.disabled = !pendingLang;
+        deviceDone.disabled = !pendingDevice;
+        document.querySelectorAll("#lang-choices .choice").forEach((b) => {
+          b.classList.toggle("selected", b.dataset.lang === pendingLang);
+        });
+        document.querySelectorAll("#device-choices .choice").forEach((b) => {
+          b.classList.toggle("selected", b.dataset.device === pendingDevice);
+        });
+        applyI18n();
+      }
+
+      document.querySelectorAll("#lang-choices .choice").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          pendingLang = btn.dataset.lang;
+          document.querySelectorAll("#lang-choices .choice").forEach((b) => {
+            b.classList.toggle("selected", b === btn);
+          });
+          langNext.disabled = false;
+          applyI18n();
+        });
       });
-      countrySelect.addEventListener("change", apply);
-      apply();
+
+      langNext.addEventListener("click", () => {
+        lang = pendingLang;
+        setCookie(cfg.cookieLang, lang);
+        stepLang.hidden = true;
+        stepDevice.hidden = false;
+        applyI18n();
+      });
+
+      document.querySelectorAll("#device-choices .choice").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          pendingDevice = btn.dataset.device;
+          document.querySelectorAll("#device-choices .choice").forEach((b) => {
+            b.classList.toggle("selected", b === btn);
+          });
+          deviceDone.disabled = false;
+        });
+      });
+
+      deviceDone.addEventListener("click", () => {
+        deviceId = pendingDevice;
+        setCookie(cfg.cookieDevice, deviceId);
+        const d = devices.find((x) => x.id === deviceId);
+        if (d) countrySelect.value = d.country;
+        showApp();
+      });
+
+      deviceSelect.addEventListener("change", () => {
+        deviceId = deviceSelect.value;
+        setCookie(cfg.cookieDevice, deviceId);
+        const d = devices.find((x) => x.id === deviceId);
+        if (d) countrySelect.value = d.country;
+        applyFilters();
+      });
+
+      countrySelect.addEventListener("change", applyFilters);
+
+      langSelect.addEventListener("change", () => {
+        lang = langSelect.value;
+        setCookie(cfg.cookieLang, lang);
+        applyI18n();
+        applyFilters();
+      });
+
+      document.getElementById("reopen-setup").addEventListener("click", () => {
+        openSetup(true);
+      });
+
+      // First visit: modal. Returning: cookies → app.
+      if (!getCookie(cfg.cookieLang) || !getCookie(cfg.cookieDevice)) {
+        openSetup(false);
+      } else {
+        lang = getCookie(cfg.cookieLang) === "fr" ? "fr" : "en";
+        deviceId = getCookie(cfg.cookieDevice);
+        const d = devices.find((x) => x.id === deviceId);
+        if (d) countrySelect.value = d.country;
+        showApp();
+      }
     </script>
   </body>
 </html>
