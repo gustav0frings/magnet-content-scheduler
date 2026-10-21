@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+.vercel/
+.env
+.env*.local
+data/schedule.json
+*.tsbuildinfo
+.DS_Store

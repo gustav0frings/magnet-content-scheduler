@@ -1,0 +1,186 @@
+---
+export const prerender = false;
+
+import "../styles/global.css";
+import { DEVICES, countries, getDevice } from "../lib/devices";
+import { inDefaultWindow, listItems } from "../lib/schedule";
+import type { ScheduleItem } from "../lib/types";
+
+const all = inDefaultWindow(await listItems());
+
+const start = new Date();
+start.setHours(0, 0, 0, 0);
+const days: { key: string; label: string; isToday: boolean; items: ScheduleItem[] }[] =
+  [];
+for (let i = 0; i < 8; i++) {
+  const d = new Date(start);
+  d.setDate(d.getDate() + i);
+  const key = d.toISOString().slice(0, 10);
+  const label = d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  days.push({
+    key,
+    label: i === 0 ? `Today · ${label}` : label,
+    isToday: i === 0,
+    items: [],
+  });
+}
+
+for (const item of all) {
+  const key = item.publishAt.slice(0, 10);
+  const day = days.find((d) => d.key === key);
+  if (day) day.items.push(item);
+}
+
+const countryList = countries();
+const deviceJson = JSON.stringify(DEVICES);
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Magnet · Content Scheduler</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Serif:wght@600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>Content Scheduler</h1>
+        <p>Pick your device — calendar shows today + next 7 days.</p>
+      </header>
+
+      <div class="pickers">
+        <label class="field">
+          Device
+          <select id="device" aria-label="Device">
+            <option value="">All devices</option>
+            {DEVICES.map((d) => (
+              <option value={d.id}>{d.name} ({d.country})</option>
+            ))}
+          </select>
+        </label>
+        <label class="field">
+          Country
+          <select id="country" aria-label="Country">
+            <option value="">All countries</option>
+            {countryList.map((c) => (
+              <option value={c}>{c}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <p class="range" id="range-hint"></p>
+
+      <div id="calendar">
+        {
+          days.map((day) => (
+            <section class:list={["day", { today: day.isToday }]} data-day={day.key}>
+              <h2>{day.label}</h2>
+              {day.items.length === 0 ? (
+                <p class="empty" data-empty>
+                  —
+                </p>
+              ) : (
+                day.items.map((item) => {
+                  const device = getDevice(item.deviceId);
+                  const time = new Date(item.publishAt).toLocaleTimeString(
+                    "en-GB",
+                    { hour: "2-digit", minute: "2-digit" },
+                  );
+                  return (
+                    <article
+                      class="card"
+                      data-device={item.deviceId}
+                      data-country={item.country}
+                    >
+                      <strong>{item.title}</strong>
+                      <div class="meta">
+                        <span>{time}</span>
+                        <span class={`badge ${item.country}`}>{item.country}</span>
+                        <span>{device?.name ?? item.deviceId}</span>
+                        {item.savedAt ? <span>saved</span> : null}
+                      </div>
+                      <a class="download" href={item.url} download>
+                        Download
+                      </a>
+                    </article>
+                  );
+                })
+              )}
+            </section>
+          ))
+        }
+      </div>
+
+      <p class="footer">
+        Inbox API: <code>/api/inbox/&lt;deviceId&gt;</code>
+      </p>
+    </div>
+
+    <script define:vars={{ deviceJson }}>
+      const STORAGE_DEVICE = "magnet-scheduler-device";
+      const STORAGE_COUNTRY = "magnet-scheduler-country";
+      const devices = JSON.parse(deviceJson);
+      const deviceSelect = document.getElementById("device");
+      const countrySelect = document.getElementById("country");
+      const hint = document.getElementById("range-hint");
+
+      const savedDevice = localStorage.getItem(STORAGE_DEVICE) || "";
+      const savedCountry = localStorage.getItem(STORAGE_COUNTRY) || "";
+      if ([...deviceSelect.options].some((o) => o.value === savedDevice)) {
+        deviceSelect.value = savedDevice;
+      }
+      if ([...countrySelect.options].some((o) => o.value === savedCountry)) {
+        countrySelect.value = savedCountry;
+      }
+
+      function apply() {
+        const deviceId = deviceSelect.value;
+        const country = countrySelect.value;
+        localStorage.setItem(STORAGE_DEVICE, deviceId);
+        localStorage.setItem(STORAGE_COUNTRY, country);
+
+        const device = devices.find((d) => d.id === deviceId);
+        hint.textContent = device
+          ? `Showing ${device.name} · ${device.country}`
+          : country
+            ? `Showing country ${country}`
+            : "Showing all devices";
+
+        document.querySelectorAll(".card").forEach((card) => {
+          const okDevice = !deviceId || card.dataset.device === deviceId;
+          const okCountry = !country || card.dataset.country === country;
+          card.hidden = !(okDevice && okCountry);
+        });
+
+        document.querySelectorAll(".day").forEach((section) => {
+          const cards = [...section.querySelectorAll(".card")];
+          const visible = cards.filter((c) => !c.hidden);
+          const empty = section.querySelector("[data-empty]");
+          if (empty) empty.hidden = visible.length > 0;
+          else if (cards.length && visible.length === 0) {
+            // day had cards but all filtered out — leave cards hidden
+          }
+        });
+      }
+
+      deviceSelect.addEventListener("change", () => {
+        const d = devices.find((x) => x.id === deviceSelect.value);
+        if (d) countrySelect.value = d.country;
+        apply();
+      });
+      countrySelect.addEventListener("change", apply);
+      apply();
+    </script>
+  </body>
+</html>

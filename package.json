@@ -1,0 +1,23 @@
+{
+  "name": "magnet-content-scheduler",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "send": "tsx scripts/send.ts"
+  },
+  "dependencies": {
+    "@astrojs/vercel": "^9.0.0",
+    "@vercel/blob": "^2.0.0",
+    "astro": "^5.14.0",
+    "dotenv": "^17.2.0",
+    "uploadthing": "^7.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
