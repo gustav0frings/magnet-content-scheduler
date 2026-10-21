@@ -591,7 +591,9 @@ const boot = {
         deviceId = deviceSelect.value;
         setCookie(cfg.cookieDevice, deviceId);
         const d = devices.find((x) => x.id === deviceId);
-        if (d) countrySelect.value = d.country;
+        // Sync country with the picked device; clear it for "all devices"
+        // so FR + US (etc.) all show up.
+        countrySelect.value = d ? d.country : "";
         applyFilters();
       });
 
