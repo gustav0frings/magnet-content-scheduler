@@ -478,22 +478,25 @@ const boot = {
         deviceId = id;
         pendingDevice = id;
         setCookie(cfg.cookieDevice, deviceId);
-        // After onboarding, land on that device; later visits use all-devices.
-        showApp({ filterDevice: id });
+        showApp();
       }
 
-      function showApp(opts = {}) {
+      function showApp() {
         modal.hidden = true;
         app.hidden = false;
         syncDeviceSelect();
-        if (opts.filterDevice) {
-          deviceSelect.value = opts.filterDevice;
-          const d = devices.find((x) => x.id === opts.filterDevice);
-          countrySelect.value = d ? d.country : "";
+        // Default view = cookie device (select + country stay in sync).
+        // User can still switch the dropdown to "all devices".
+        const saved = getCookie(cfg.cookieDevice) || deviceId || "";
+        const d = devices.find((x) => x.id === saved);
+        if (d) {
+          deviceSelect.value = d.id;
+          countrySelect.value = d.country;
+          deviceId = d.id;
         } else {
-          // Cookie only skips the modal — calendar starts on all devices/countries.
           deviceSelect.value = "";
           countrySelect.value = "";
+          deviceId = "";
         }
         applyI18n();
         applyFilters();
@@ -638,7 +641,7 @@ const boot = {
       } else {
         lang = getCookie(cfg.cookieLang) === "fr" ? "fr" : "en";
         deviceId = getCookie(cfg.cookieDevice);
-        showApp();
+        showApp(); // filters on cookie device by default
       }
     </script>
   </body>
