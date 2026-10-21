@@ -4,6 +4,16 @@ export type CountryCode = "FR" | "US" | "UK";
 
 export const COUNTRY_CODES: CountryCode[] = ["FR", "US", "UK"];
 
+export const COUNTRY_FLAGS: Record<CountryCode, string> = {
+  FR: "🇫🇷",
+  US: "🇺🇸",
+  UK: "🇬🇧",
+};
+
+export function countryFlag(country: string): string {
+  return COUNTRY_FLAGS[country as CountryCode] ?? country;
+}
+
 export type Device = {
   id: string;
   name: string;

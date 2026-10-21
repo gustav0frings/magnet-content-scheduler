@@ -2,7 +2,13 @@
 export const prerender = false;
 
 import "../styles/global.css";
-import { COUNTRY_CODES, countriesFrom, listDevices } from "../lib/devices";
+import {
+  COUNTRY_CODES,
+  COUNTRY_FLAGS,
+  countriesFrom,
+  countryFlag,
+  listDevices,
+} from "../lib/devices";
 import { COOKIE_DEVICE, COOKIE_LANG, messages, UI_LANGS } from "../lib/i18n";
 import { inDefaultWindow, listItems } from "../lib/schedule";
 import type { ScheduleItem } from "../lib/types";
@@ -46,6 +52,7 @@ const countryList = countriesFrom(devices);
 const boot = {
   devices,
   countries: COUNTRY_CODES,
+  flags: COUNTRY_FLAGS,
   langs: UI_LANGS,
   messages,
   cookieLang: COOKIE_LANG,
@@ -86,7 +93,7 @@ const boot = {
             <option value="" data-i18n-option="allDevices">All devices</option>
             {devices.map((d) => (
               <option value={d.id}>
-                {d.name} ({d.country})
+                {countryFlag(d.country)} {d.name}
               </option>
             ))}
           </select>
@@ -104,7 +111,9 @@ const boot = {
           <select id="country" aria-label="Country">
             <option value="" data-i18n-option="allCountries">All countries</option>
             {countryList.map((c) => (
-              <option value={c}>{c}</option>
+              <option value={c}>
+                {countryFlag(c)} {c}
+              </option>
             ))}
           </select>
         </label>
@@ -139,7 +148,9 @@ const boot = {
                       <strong>{item.title}</strong>
                       <div class="meta">
                         <span data-time></span>
-                        <span class={`badge ${item.country}`}>{item.country}</span>
+                        <span class={`badge ${item.country}`} title={item.country}>
+                          {countryFlag(item.country)}
+                        </span>
                         <span>{device?.name ?? item.deviceId}</span>
                         {item.savedAt ? (
                           <span data-i18n="saved">saved</span>
@@ -201,7 +212,9 @@ const boot = {
               <span data-i18n="modalRegisterCountry">Country</span>
               <select id="reg-country">
                 {COUNTRY_CODES.map((c) => (
-                  <option value={c}>{c}</option>
+                  <option value={c}>
+                    {countryFlag(c)} {c}
+                  </option>
                 ))}
               </select>
             </label>
@@ -222,6 +235,11 @@ const boot = {
       const cfg = boot;
       let devices = [...cfg.devices];
       const tAll = cfg.messages;
+      const flags = cfg.flags || {};
+
+      function flag(country) {
+        return flags[country] || country;
+      }
 
       function fill(template, vars) {
         return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
@@ -282,7 +300,7 @@ const boot = {
         for (const d of devices) {
           const opt = document.createElement("option");
           opt.value = d.id;
-          opt.textContent = `${d.name} (${d.country})`;
+          opt.textContent = `${flag(d.country)} ${d.name}`;
           deviceSelect.appendChild(opt);
         }
         if ([...deviceSelect.options].some((o) => o.value === current)) {
@@ -302,7 +320,7 @@ const boot = {
         for (const c of countries) {
           const opt = document.createElement("option");
           opt.value = c;
-          opt.textContent = c;
+          opt.textContent = `${flag(c)} ${c}`;
           countrySelect.appendChild(opt);
         }
         if ([...countrySelect.options].some((o) => o.value === cCur)) {
@@ -320,7 +338,7 @@ const boot = {
         for (const d of devices) {
           const opt = document.createElement("option");
           opt.value = d.id;
-          opt.textContent = `${d.name} (${d.country})`;
+          opt.textContent = `${flag(d.country)} ${d.name}`;
           modalDevice.appendChild(opt);
         }
         if (pendingDevice && [...modalDevice.options].some((o) => o.value === pendingDevice)) {
@@ -383,9 +401,12 @@ const boot = {
         const device = devices.find((d) => d.id === deviceId);
 
         hint.textContent = device
-          ? fill(m.showingDevice, { name: device.name, country: device.country })
+          ? fill(m.showingDevice, {
+              name: device.name,
+              country: flag(device.country),
+            })
           : country
-            ? fill(m.showingCountry, { country })
+            ? fill(m.showingCountry, { country: flag(country) })
             : m.showingAll;
 
         document.querySelectorAll(".card").forEach((card) => {
