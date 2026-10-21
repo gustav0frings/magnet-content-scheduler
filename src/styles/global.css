@@ -118,27 +118,47 @@ select {
   color: var(--accent);
 }
 
+.day-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+@media (max-width: 640px) {
+  .day-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 400px) {
+  .day-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 0.75rem;
-  margin-bottom: 0.5rem;
+  padding: 0.55rem;
   display: grid;
-  grid-template-columns: 72px 1fr;
-  gap: 0.75rem 0.9rem;
-  align-items: start;
+  grid-template-rows: auto 1fr;
+  gap: 0.5rem;
+  align-content: start;
+  min-width: 0;
 }
 
 .card .thumb {
   display: block;
-  width: 72px;
+  width: 100%;
   aspect-ratio: 9 / 16;
+  max-height: 180px;
   border-radius: 8px;
   overflow: hidden;
   background: var(--bg);
   border: 1px solid var(--border);
   text-decoration: none;
+  justify-self: center;
 }
 
 .card .thumb video {
@@ -152,8 +172,17 @@ select {
 
 .card-body {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.3rem;
   min-width: 0;
+}
+
+.card-body strong {
+  font-size: 0.85rem;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* Author `display` beats the UA [hidden] rule — keep filters working */
@@ -173,10 +202,17 @@ select {
 .card .meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.3rem 0.45rem;
   align-items: center;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   color: var(--muted);
+}
+
+.card .meta .device-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .badge {
@@ -204,14 +240,15 @@ select {
 
 .card a.download {
   display: inline-flex;
-  align-self: start;
-  margin-top: 0.2rem;
+  justify-content: center;
+  width: 100%;
+  margin-top: 0.15rem;
   background: var(--accent);
   color: var(--accent-text);
   text-decoration: none;
   font-weight: 600;
-  font-size: 0.85rem;
-  padding: 0.45rem 0.75rem;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.5rem;
   border-radius: 8px;
 }
 
