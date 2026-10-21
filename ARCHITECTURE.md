@@ -46,6 +46,8 @@ Filtres :
 - device (sélecteur principal)
 - pays (optionnel, dérivé des devices)
 
+**Publiée** : coche + libellé Publiée / Non publiée (EN : Published / Not published). Télécharger marque publiée et grise le bouton. La coche marque ou annule, sans télécharger. `publishedAt` sur l’item. `POST /api/items/published` `{ "id", "published" }`. Distinct de `savedAt`.
+
 ## Envoi (AI) — sans redeploy, sans Blob Vercel
 
 La vidéo et le planning vivent sur **UploadThing** (plan free). Vercel n’héberge que le front.

@@ -17,10 +17,12 @@ async function writeToUploadThing(items: ScheduleItem[]): Promise<void> {
 
 export async function listItems(): Promise<ScheduleItem[]> {
   const items = await readFromUploadThing();
-  return items.sort(
-    (a, b) =>
-      new Date(a.publishAt).getTime() - new Date(b.publishAt).getTime(),
-  );
+  return items
+    .map((item) => ({ ...item, publishedAt: item.publishedAt ?? null }))
+    .sort(
+      (a, b) =>
+        new Date(a.publishAt).getTime() - new Date(b.publishAt).getTime(),
+    );
 }
 
 export async function saveItems(items: ScheduleItem[]): Promise<void> {
@@ -28,18 +30,31 @@ export async function saveItems(items: ScheduleItem[]): Promise<void> {
 }
 
 export async function addItem(
-  item: Omit<ScheduleItem, "id" | "savedAt" | "createdAt">,
+  item: Omit<ScheduleItem, "id" | "savedAt" | "publishedAt" | "createdAt">,
 ): Promise<ScheduleItem> {
   const items = await listItems();
   const next: ScheduleItem = {
     ...item,
     id: crypto.randomUUID(),
     savedAt: null,
+    publishedAt: null,
     createdAt: new Date().toISOString(),
   };
   items.push(next);
   await saveItems(items);
   return next;
+}
+
+export async function setPublished(
+  id: string,
+  published: boolean,
+): Promise<ScheduleItem | null> {
+  const items = await listItems();
+  const item = items.find((i) => i.id === id);
+  if (!item) return null;
+  item.publishedAt = published ? new Date().toISOString() : null;
+  await saveItems(items);
+  return item;
 }
 
 export async function markSaved(

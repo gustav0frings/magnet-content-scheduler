@@ -12,6 +12,8 @@ export type ScheduleItem = {
   publishAt: string;
   /** ISO 8601 when marked saved by phone shortcut */
   savedAt: string | null;
+  /** ISO 8601 when marked published in the calendar (download or check). Null = not published. */
+  publishedAt: string | null;
   createdAt: string;
 };
 

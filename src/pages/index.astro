@@ -206,6 +206,89 @@ const boot = {
         weekThis.hidden = weekOffset === 0;
       }
 
+      async function persistPublished(id, published) {
+        const res = await fetch("/api/items/published", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id, published }),
+          keepalive: true,
+        });
+        if (!res.ok) throw new Error("failed");
+        const body = await res.json();
+        const item = items.find((i) => i.id === id);
+        if (item) item.publishedAt = body.item?.publishedAt ?? null;
+      }
+
+      function paintPublished(card, on) {
+        const m = t();
+        card.dataset.published = on ? "1" : "0";
+        card.classList.toggle("is-published", on);
+        const toggle = card.querySelector(".publish-toggle");
+        if (toggle) {
+          toggle.classList.toggle("is-on", on);
+          toggle.setAttribute("aria-pressed", on ? "true" : "false");
+          toggle.setAttribute("aria-label", on ? m.unmarkPublished : m.markPublished);
+        }
+        const status = card.querySelector("[data-status]");
+        if (status) {
+          status.setAttribute("data-i18n", on ? "published" : "unpublished");
+          status.textContent = on ? m.published : m.unpublished;
+        }
+        const dl = card.querySelector("a.download");
+        if (dl) {
+          dl.classList.toggle("is-published", on);
+          if (on) {
+            dl.setAttribute("aria-disabled", "true");
+            dl.removeAttribute("href");
+          } else {
+            dl.removeAttribute("aria-disabled");
+            if (dl.dataset.href) dl.href = dl.dataset.href;
+          }
+        }
+      }
+
+      async function togglePublished(card, id) {
+        const next = card.dataset.published !== "1";
+        const toggle = card.querySelector(".publish-toggle");
+        if (toggle) toggle.disabled = true;
+        paintPublished(card, next);
+        try {
+          await persistPublished(id, next);
+        } catch {
+          paintPublished(card, !next);
+        } finally {
+          if (toggle) toggle.disabled = false;
+        }
+      }
+
+      async function onDownload(event, card, id) {
+        if (card.dataset.published === "1") {
+          event.preventDefault();
+          return;
+        }
+        // Keep href for this click so the file still downloads (iPhone included).
+        const m = t();
+        card.dataset.published = "1";
+        card.classList.add("is-published");
+        const toggle = card.querySelector(".publish-toggle");
+        if (toggle) {
+          toggle.classList.add("is-on");
+          toggle.setAttribute("aria-pressed", "true");
+          toggle.setAttribute("aria-label", m.unmarkPublished);
+        }
+        const status = card.querySelector("[data-status]");
+        if (status) {
+          status.setAttribute("data-i18n", "published");
+          status.textContent = m.published;
+        }
+        try {
+          await persistPublished(id, true);
+          paintPublished(card, true);
+        } catch {
+          paintPublished(card, false);
+        }
+      }
+
       function renderCalendar() {
         const cal = document.getElementById("calendar");
         const start = startOfView();
@@ -247,11 +330,13 @@ const boot = {
               const downloadName = `${item.title}.mp4`;
               const downloadHref = `/api/download?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(downloadName)}`;
 
+              const published = Boolean(item.publishedAt);
               const card = document.createElement("article");
-              card.className = "card";
+              card.className = published ? "card is-published" : "card";
               card.dataset.device = item.deviceId;
               card.dataset.country = item.country;
               card.dataset.publish = item.publishAt;
+              card.dataset.published = published ? "1" : "0";
 
               const thumb = document.createElement("a");
               thumb.className = "thumb";
@@ -296,12 +381,39 @@ const boot = {
               }
               body.appendChild(meta);
 
+              const publishRow = document.createElement("div");
+              publishRow.className = "publish-row";
+              const toggle = document.createElement("button");
+              toggle.type = "button";
+              toggle.className = published ? "publish-toggle is-on" : "publish-toggle";
+              toggle.setAttribute("aria-pressed", published ? "true" : "false");
+              toggle.setAttribute(
+                "aria-label",
+                published ? m.unmarkPublished : m.markPublished,
+              );
+              toggle.textContent = "✓";
+              toggle.addEventListener("click", () => {
+                togglePublished(card, item.id);
+              });
+              const status = document.createElement("span");
+              status.className = "status-label";
+              status.setAttribute("data-status", "");
+              status.setAttribute("data-i18n", published ? "published" : "unpublished");
+              status.textContent = published ? m.published : m.unpublished;
+              publishRow.append(toggle, status);
+              body.appendChild(publishRow);
+
               const dl = document.createElement("a");
-              dl.className = "download";
-              dl.href = downloadHref;
+              dl.className = published ? "download is-published" : "download";
+              dl.dataset.href = downloadHref;
+              if (published) dl.setAttribute("aria-disabled", "true");
+              else dl.href = downloadHref;
               dl.setAttribute("download", downloadName);
               dl.setAttribute("data-i18n", "download");
               dl.textContent = m.download;
+              dl.addEventListener("click", (event) => {
+                onDownload(event, card, item.id);
+              });
               body.appendChild(dl);
 
               card.appendChild(body);
@@ -492,6 +604,11 @@ const boot = {
               hour: "2-digit",
               minute: "2-digit",
             });
+          }
+          const on = card.dataset.published === "1";
+          const toggle = card.querySelector(".publish-toggle");
+          if (toggle) {
+            toggle.setAttribute("aria-label", on ? m.unmarkPublished : m.markPublished);
           }
         });
 

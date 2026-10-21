@@ -281,6 +281,56 @@ select {
   border-color: color-mix(in srgb, var(--uk) 40%, var(--border));
 }
 
+.publish-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+button.publish-toggle {
+  appearance: none;
+  flex: none;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+button.publish-toggle.is-on {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+button.publish-toggle:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.status-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card.is-published {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.card.is-published .status-label {
+  color: var(--accent);
+}
+
 .card a.download {
   display: inline-flex;
   justify-content: center;
@@ -293,6 +343,12 @@ select {
   font-size: 0.75rem;
   padding: 0.4rem 0.5rem;
   border-radius: 8px;
+}
+
+.card a.download.is-published {
+  background: var(--border);
+  color: var(--muted);
+  pointer-events: none;
 }
 
 .empty {
