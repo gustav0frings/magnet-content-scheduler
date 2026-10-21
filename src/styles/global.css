@@ -310,6 +310,15 @@ button.primary:disabled {
   cursor: not-allowed;
 }
 
+.modal-device-field {
+  margin-bottom: 0.85rem;
+}
+
+.modal-device-field select {
+  width: 100%;
+  min-width: 0;
+}
+
 .register-toggle {
   display: block;
   width: 100%;

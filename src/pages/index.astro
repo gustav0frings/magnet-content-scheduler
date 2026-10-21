@@ -182,7 +182,11 @@ const boot = {
 
         <div class="modal-step" id="step-device" hidden>
           <p class="modal-label" data-i18n="modalDevice">Choose your device</p>
-          <div class="choice-grid" id="device-choices"></div>
+          <label class="field modal-device-field">
+            <select id="modal-device" aria-label="Device">
+              <option value="">—</option>
+            </select>
+          </label>
 
           <button type="button" class="linkish register-toggle" id="show-register" data-i18n="modalRegister">
             Not in the list? Register a new device
@@ -254,7 +258,7 @@ const boot = {
       const countrySelect = document.getElementById("country");
       const langSelect = document.getElementById("lang");
       const hint = document.getElementById("range-hint");
-      const deviceChoices = document.getElementById("device-choices");
+      const modalDevice = document.getElementById("modal-device");
       const showRegister = document.getElementById("show-register");
       const registerForm = document.getElementById("register-form");
       const regName = document.getElementById("reg-name");
@@ -307,22 +311,23 @@ const boot = {
       }
 
       function renderDeviceChoices() {
-        deviceChoices.innerHTML = "";
+        const placeholder = t().modalDevice;
+        modalDevice.innerHTML = "";
+        const empty = document.createElement("option");
+        empty.value = "";
+        empty.textContent = `— ${placeholder} —`;
+        modalDevice.appendChild(empty);
         for (const d of devices) {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "choice" + (d.id === pendingDevice ? " selected" : "");
-          btn.dataset.device = d.id;
-          btn.innerHTML = `<strong>${d.name}</strong><span>${d.country}</span>`;
-          btn.addEventListener("click", () => {
-            pendingDevice = d.id;
-            registerForm.hidden = true;
-            document.querySelectorAll("#device-choices .choice").forEach((b) => {
-              b.classList.toggle("selected", b.dataset.device === pendingDevice);
-            });
-            deviceDone.disabled = false;
-          });
-          deviceChoices.appendChild(btn);
+          const opt = document.createElement("option");
+          opt.value = d.id;
+          opt.textContent = `${d.name} (${d.country})`;
+          modalDevice.appendChild(opt);
+        }
+        if (pendingDevice && [...modalDevice.options].some((o) => o.value === pendingDevice)) {
+          modalDevice.value = pendingDevice;
+        } else {
+          modalDevice.value = "";
+          pendingDevice = "";
         }
         deviceDone.disabled = !pendingDevice;
       }
@@ -461,13 +466,17 @@ const boot = {
         applyI18n();
       });
 
+      modalDevice.addEventListener("change", () => {
+        pendingDevice = modalDevice.value || "";
+        if (pendingDevice) registerForm.hidden = true;
+        deviceDone.disabled = !pendingDevice;
+      });
+
       showRegister.addEventListener("click", () => {
         registerForm.hidden = !registerForm.hidden;
         if (!registerForm.hidden) {
           pendingDevice = "";
-          document.querySelectorAll("#device-choices .choice").forEach((b) => {
-            b.classList.remove("selected");
-          });
+          modalDevice.value = "";
           deviceDone.disabled = true;
           regName.focus();
         }
