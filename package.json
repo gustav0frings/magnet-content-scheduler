@@ -6,7 +6,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "send": "tsx scripts/send.ts"
+    "send": "tsx scripts/send.ts",
+    "devices": "tsx scripts/devices.ts"
   },
   "dependencies": {
     "@astrojs/vercel": "^9.0.0",

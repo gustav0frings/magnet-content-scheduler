@@ -35,12 +35,18 @@ Edit phones in `src/lib/devices.ts`.
 
 Needs `UPLOADTHING_TOKEN` in `.env`.
 
+List devices (defaults + those registered in the web UI — same list as UploadThing):
+
+```bash
+npm run devices
+```
+
 ```bash
 npm run send -- --to slim-fr --at "2026-10-21 09:00" --title "tinder reverse" \
   /path/to/video.mp4
 ```
 
-`--to` picks the device (and its country). `--at` is publish time. That updates the schedule file on UploadThing; the live site picks it up on the next load.
+`--to` is a device **id** from that list. `--at` is publish time. Updates UploadThing; live site picks it up on next load.
 
 ## Phone
 
