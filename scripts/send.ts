@@ -73,6 +73,17 @@ async function main() {
     return device;
   });
 
+  // Never schedule onto accounts still warming up (warmupStartedAt set).
+  const warming = targets.filter((d) => d.warmupStartedAt);
+  if (warming.length > 0) {
+    console.error(
+      `Refuse: account(s) still in warmup — do not push until warmup is cleared:\n${warming
+        .map((d) => `  - ${d.id} (${d.name}) warmupStartedAt=${d.warmupStartedAt}`)
+        .join("\n")}\nPick a ready account (no warmup=… in \`npm run devices\`).`,
+    );
+    process.exit(1);
+  }
+
   const token = process.env.UPLOADTHING_TOKEN;
   if (!token) {
     console.error("UPLOADTHING_TOKEN missing (.env)");
