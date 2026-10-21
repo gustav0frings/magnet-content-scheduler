@@ -37,6 +37,9 @@ export const messages = {
     changeSetup: "Change device / language",
     empty: "—",
     footer: "Inbox API",
+    weekPrev: "← 7 days",
+    weekNext: "7 days →",
+    weekThis: "This week",
   },
   fr: {
     title: "Content Scheduler",
@@ -66,5 +69,8 @@ export const messages = {
     changeSetup: "Changer appareil / langue",
     empty: "—",
     footer: "API inbox",
+    weekPrev: "← 7 jours",
+    weekNext: "7 jours →",
+    weekThis: "Cette semaine",
   },
 } as const;

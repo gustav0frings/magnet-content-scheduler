@@ -10,47 +10,15 @@ import {
   listDevices,
 } from "../lib/devices";
 import { COOKIE_DEVICE, COOKIE_LANG, messages, UI_LANGS } from "../lib/i18n";
-import { inDefaultWindow, listItems } from "../lib/schedule";
-import type { ScheduleItem } from "../lib/types";
+import { listItems } from "../lib/schedule";
 
 const devices = await listDevices();
-const all = inDefaultWindow(await listItems());
-
-const start = new Date();
-start.setHours(0, 0, 0, 0);
-const days: {
-  key: string;
-  date: Date;
-  isToday: boolean;
-  items: ScheduleItem[];
-}[] = [];
-for (let i = 0; i < 8; i++) {
-  const d = new Date(start);
-  d.setDate(d.getDate() + i);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  days.push({
-    key: `${y}-${m}-${day}`,
-    date: d,
-    isToday: i === 0,
-    items: [],
-  });
-}
-
-for (const item of all) {
-  const local = new Date(item.publishAt);
-  const y = local.getFullYear();
-  const m = String(local.getMonth() + 1).padStart(2, "0");
-  const day = String(local.getDate()).padStart(2, "0");
-  const key = `${y}-${m}-${day}`;
-  const bucket = days.find((d) => d.key === key);
-  if (bucket) bucket.items.push(item);
-}
+const items = await listItems();
 
 const countryList = countriesFrom(devices);
 const boot = {
   devices,
+  items,
   countries: COUNTRY_CODES,
   flags: COUNTRY_FLAGS,
   langs: UI_LANGS,
@@ -119,75 +87,22 @@ const boot = {
         </label>
       </div>
 
+      <div class="week-nav">
+        <button type="button" class="week-btn" id="week-prev" data-i18n="weekPrev">
+          ← 7 days
+        </button>
+        <span class="week-label" id="week-label"></span>
+        <button type="button" class="week-btn" id="week-next" data-i18n="weekNext">
+          7 days →
+        </button>
+        <button type="button" class="week-btn week-this" id="week-this" hidden data-i18n="weekThis">
+          This week
+        </button>
+      </div>
+
       <p class="range" id="range-hint"></p>
 
-      <div id="calendar">
-        {
-          days.map((day) => (
-            <section
-              class:list={["day", { today: day.isToday }]}
-              data-day={day.key}
-              data-is-today={day.isToday ? "1" : "0"}
-              data-date={day.date.toISOString()}
-            >
-              <h2 data-day-label></h2>
-              {day.items.length === 0 ? (
-                <p class="empty" data-empty data-i18n="empty">
-                  —
-                </p>
-              ) : (
-                <div class="day-grid">
-                  {day.items.map((item) => {
-                    const device = devices.find((d) => d.id === item.deviceId);
-                    const downloadName = `${item.title}.mp4`;
-                    const downloadHref = `/api/download?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(downloadName)}`;
-                    return (
-                      <article
-                        class="card"
-                        data-device={item.deviceId}
-                        data-country={item.country}
-                        data-publish={item.publishAt}
-                      >
-                        <a
-                          class="thumb"
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-label={item.title}
-                        >
-                          <video
-                            src={`${item.url}#t=0.1`}
-                            muted
-                            playsinline
-                            preload="metadata"
-                            aria-hidden="true"
-                          />
-                        </a>
-                        <div class="card-body">
-                          <strong>{item.title}</strong>
-                          <div class="meta">
-                            <span data-time></span>
-                            <span class={`badge ${item.country}`} title={item.country}>
-                              {countryFlag(item.country)}
-                            </span>
-                            <span class="device-name">{device?.name ?? item.deviceId}</span>
-                            {item.savedAt ? (
-                              <span data-i18n="saved">saved</span>
-                            ) : null}
-                          </div>
-                          <a class="download" href={downloadHref} download={downloadName} data-i18n="download">
-                            Download
-                          </a>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          ))
-        }
-      </div>
+      <div id="calendar"></div>
 
       <p class="footer">
         <span data-i18n="footer">Inbox API</span>: <code>/api/inbox/&lt;deviceId&gt;</code>
@@ -258,11 +173,147 @@ const boot = {
     <script define:vars={{ boot }}>
       const cfg = boot;
       let devices = [...cfg.devices];
+      const items = [...(cfg.items || [])];
       const tAll = cfg.messages;
       const flags = cfg.flags || {};
+      let weekOffset = 0; // days from today (multiples of 7)
 
       function flag(country) {
         return flags[country] || country;
+      }
+
+      function dayKey(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, "0");
+        const d = String(date.getDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+      }
+
+      function startOfView() {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        start.setDate(start.getDate() + weekOffset);
+        return start;
+      }
+
+      function updateWeekChrome() {
+        const loc = localeFor(lang || pendingLang || "en");
+        const start = startOfView();
+        const end = new Date(start);
+        end.setDate(end.getDate() + 7);
+        const fmt = { day: "numeric", month: "short" };
+        weekLabel.textContent = `${start.toLocaleDateString(loc, fmt)} – ${end.toLocaleDateString(loc, fmt)}`;
+        weekThis.hidden = weekOffset === 0;
+      }
+
+      function renderCalendar() {
+        const cal = document.getElementById("calendar");
+        const start = startOfView();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const m = t();
+        cal.innerHTML = "";
+
+        for (let i = 0; i < 8; i++) {
+          const d = new Date(start);
+          d.setDate(d.getDate() + i);
+          const key = dayKey(d);
+          const isToday = d.getTime() === today.getTime();
+          const dayItems = items.filter((it) => dayKey(new Date(it.publishAt)) === key);
+
+          const section = document.createElement("section");
+          section.className = isToday ? "day today" : "day";
+          section.dataset.day = key;
+          section.dataset.isToday = isToday ? "1" : "0";
+          section.dataset.date = d.toISOString();
+
+          const h2 = document.createElement("h2");
+          h2.setAttribute("data-day-label", "");
+          section.appendChild(h2);
+
+          const empty = document.createElement("p");
+          empty.className = "empty";
+          empty.setAttribute("data-empty", "");
+          empty.setAttribute("data-i18n", "empty");
+          empty.textContent = m.empty;
+          empty.hidden = dayItems.length > 0;
+          section.appendChild(empty);
+
+          if (dayItems.length > 0) {
+            const grid = document.createElement("div");
+            grid.className = "day-grid";
+            for (const item of dayItems) {
+              const device = devices.find((x) => x.id === item.deviceId);
+              const downloadName = `${item.title}.mp4`;
+              const downloadHref = `/api/download?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(downloadName)}`;
+
+              const card = document.createElement("article");
+              card.className = "card";
+              card.dataset.device = item.deviceId;
+              card.dataset.country = item.country;
+              card.dataset.publish = item.publishAt;
+
+              const thumb = document.createElement("a");
+              thumb.className = "thumb";
+              thumb.href = item.url;
+              thumb.target = "_blank";
+              thumb.rel = "noopener noreferrer";
+              thumb.setAttribute("aria-label", item.title);
+              const video = document.createElement("video");
+              video.src = `${item.url}#t=0.1`;
+              video.muted = true;
+              video.playsInline = true;
+              video.preload = "metadata";
+              video.setAttribute("aria-hidden", "true");
+              thumb.appendChild(video);
+              card.appendChild(thumb);
+
+              const body = document.createElement("div");
+              body.className = "card-body";
+              const title = document.createElement("strong");
+              title.textContent = item.title;
+              body.appendChild(title);
+
+              const meta = document.createElement("div");
+              meta.className = "meta";
+              const time = document.createElement("span");
+              time.setAttribute("data-time", "");
+              meta.appendChild(time);
+              const badge = document.createElement("span");
+              badge.className = `badge ${item.country}`;
+              badge.title = item.country;
+              badge.textContent = flag(item.country);
+              meta.appendChild(badge);
+              const deviceName = document.createElement("span");
+              deviceName.className = "device-name";
+              deviceName.textContent = device?.name ?? item.deviceId;
+              meta.appendChild(deviceName);
+              if (item.savedAt) {
+                const saved = document.createElement("span");
+                saved.setAttribute("data-i18n", "saved");
+                saved.textContent = m.saved;
+                meta.appendChild(saved);
+              }
+              body.appendChild(meta);
+
+              const dl = document.createElement("a");
+              dl.className = "download";
+              dl.href = downloadHref;
+              dl.setAttribute("download", downloadName);
+              dl.setAttribute("data-i18n", "download");
+              dl.textContent = m.download;
+              body.appendChild(dl);
+
+              card.appendChild(body);
+              grid.appendChild(card);
+            }
+            section.appendChild(grid);
+          }
+
+          cal.appendChild(section);
+        }
+
+        updateWeekChrome();
       }
 
       function fill(template, vars) {
@@ -302,6 +353,10 @@ const boot = {
       const countrySelect = document.getElementById("country");
       const langSelect = document.getElementById("lang");
       const hint = document.getElementById("range-hint");
+      const weekPrev = document.getElementById("week-prev");
+      const weekNext = document.getElementById("week-next");
+      const weekThis = document.getElementById("week-this");
+      const weekLabel = document.getElementById("week-label");
       const modalDevice = document.getElementById("modal-device");
       const showRegister = document.getElementById("show-register");
       const registerForm = document.getElementById("register-form");
@@ -470,7 +525,9 @@ const boot = {
           const cards = [...section.querySelectorAll(".card")];
           const visible = cards.filter((c) => !c.hidden);
           const empty = section.querySelector("[data-empty]");
+          const grid = section.querySelector(".day-grid");
           if (empty) empty.hidden = visible.length > 0;
+          if (grid) grid.hidden = visible.length === 0;
         });
       }
 
@@ -498,6 +555,7 @@ const boot = {
           countrySelect.value = "";
           deviceId = "";
         }
+        renderCalendar();
         applyI18n();
         applyFilters();
       }
@@ -625,9 +683,31 @@ const boot = {
 
       countrySelect.addEventListener("change", applyFilters);
 
+      weekPrev.addEventListener("click", () => {
+        weekOffset -= 7;
+        renderCalendar();
+        applyI18n();
+        applyFilters();
+      });
+
+      weekNext.addEventListener("click", () => {
+        weekOffset += 7;
+        renderCalendar();
+        applyI18n();
+        applyFilters();
+      });
+
+      weekThis.addEventListener("click", () => {
+        weekOffset = 0;
+        renderCalendar();
+        applyI18n();
+        applyFilters();
+      });
+
       langSelect.addEventListener("change", () => {
         lang = langSelect.value;
         setCookie(cfg.cookieLang, lang);
+        renderCalendar();
         applyI18n();
         applyFilters();
       });
