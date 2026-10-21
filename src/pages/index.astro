@@ -369,12 +369,11 @@ const boot = {
             const ids = it.deviceIds?.length ? it.deviceIds : [it.deviceId];
             for (const id of ids) if (id) coveredIds.add(id);
           }
-          const missingAccounts = devices.filter((d) => {
-            if (d.warmupStartedAt) return false;
-            if (deviceFilter && d.id !== deviceFilter) return false;
-            if (countryFilter && d.country !== countryFilter) return false;
-            return !coveredIds.has(d.id);
-          });
+          // Always list every non-warmup account missing a video that day
+          // (ignore account/country filters — those only affect the cards).
+          const missingAccounts = devices.filter(
+            (d) => !d.warmupStartedAt && !coveredIds.has(d.id),
+          );
           const gaps = document.createElement("div");
           gaps.className = "day-gaps";
           gaps.hidden = missingAccounts.length === 0;
