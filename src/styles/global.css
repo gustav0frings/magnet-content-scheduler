@@ -161,7 +161,12 @@ select {
 .empty[hidden],
 .modal-step[hidden],
 .modal[hidden],
-#app[hidden] {
+#app[hidden],
+.register-form[hidden],
+.register-error[hidden],
+#device-done[hidden],
+#show-register[hidden],
+.modal-device-field[hidden] {
   display: none !important;
 }
 

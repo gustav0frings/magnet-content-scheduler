@@ -212,7 +212,7 @@ const boot = {
 
         <div class="modal-step" id="step-device" hidden>
           <p class="modal-label" data-i18n="modalDevice">Choose your device</p>
-          <label class="field modal-device-field">
+          <label class="field modal-device-field" id="modal-device-field">
             <select id="modal-device" aria-label="Device">
               <option value="">—</option>
             </select>
@@ -300,10 +300,32 @@ const boot = {
       const modalDevice = document.getElementById("modal-device");
       const showRegister = document.getElementById("show-register");
       const registerForm = document.getElementById("register-form");
+      const modalDeviceField = document.getElementById("modal-device-field");
       const regName = document.getElementById("reg-name");
       const regCountry = document.getElementById("reg-country");
       const regSubmit = document.getElementById("reg-submit");
       const regError = document.getElementById("reg-error");
+
+      function showPickDevice() {
+        registerForm.hidden = true;
+        regError.hidden = true;
+        modalDeviceField.hidden = false;
+        showRegister.hidden = false;
+        deviceDone.hidden = false;
+        deviceDone.disabled = !pendingDevice;
+      }
+
+      function showRegisterDevice() {
+        pendingDevice = "";
+        modalDevice.value = "";
+        registerForm.hidden = false;
+        regError.hidden = true;
+        modalDeviceField.hidden = true;
+        showRegister.hidden = true;
+        deviceDone.hidden = true;
+        deviceDone.disabled = true;
+        regName.focus();
+      }
 
       function t() {
         return tAll[lang || pendingLang || "en"];
@@ -476,14 +498,11 @@ const boot = {
         modal.hidden = false;
         pendingLang = lang || "en";
         pendingDevice = deviceId || "";
-        registerForm.hidden = true;
-        regError.hidden = true;
-        deviceDone.hidden = false;
-        showRegister.hidden = false;
         stepLang.hidden = false;
         stepDevice.hidden = true;
         langNext.disabled = !pendingLang;
         renderDeviceChoices();
+        showPickDevice();
         document.querySelectorAll("#lang-choices .choice").forEach((b) => {
           b.classList.toggle("selected", b.dataset.lang === pendingLang);
         });
@@ -512,28 +531,12 @@ const boot = {
 
       modalDevice.addEventListener("change", () => {
         pendingDevice = modalDevice.value || "";
-        if (pendingDevice) {
-          registerForm.hidden = true;
-          deviceDone.hidden = false;
-          showRegister.hidden = false;
-        }
-        deviceDone.disabled = !pendingDevice;
+        if (pendingDevice) showPickDevice();
+        else deviceDone.disabled = true;
       });
 
       showRegister.addEventListener("click", () => {
-        registerForm.hidden = !registerForm.hidden;
-        if (!registerForm.hidden) {
-          pendingDevice = "";
-          modalDevice.value = "";
-          deviceDone.hidden = true;
-          deviceDone.disabled = true;
-          showRegister.hidden = true;
-          regName.focus();
-        } else {
-          deviceDone.hidden = false;
-          showRegister.hidden = false;
-          deviceDone.disabled = !pendingDevice;
-        }
+        showRegisterDevice();
       });
 
       function normalizeNameLive(raw) {
