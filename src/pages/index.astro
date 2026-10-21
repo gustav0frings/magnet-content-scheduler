@@ -138,6 +138,8 @@ const boot = {
               ) : (
                 day.items.map((item) => {
                   const device = devices.find((d) => d.id === item.deviceId);
+                  const downloadName = `${item.title}.mp4`;
+                  const downloadHref = `/api/download?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(downloadName)}`;
                   return (
                     <article
                       class="card"
@@ -145,20 +147,37 @@ const boot = {
                       data-country={item.country}
                       data-publish={item.publishAt}
                     >
-                      <strong>{item.title}</strong>
-                      <div class="meta">
-                        <span data-time></span>
-                        <span class={`badge ${item.country}`} title={item.country}>
-                          {countryFlag(item.country)}
-                        </span>
-                        <span>{device?.name ?? item.deviceId}</span>
-                        {item.savedAt ? (
-                          <span data-i18n="saved">saved</span>
-                        ) : null}
-                      </div>
-                      <a class="download" href={item.url} download data-i18n="download">
-                        Download
+                      <a
+                        class="thumb"
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={item.title}
+                      >
+                        <video
+                          src={`${item.url}#t=0.1`}
+                          muted
+                          playsinline
+                          preload="metadata"
+                          aria-hidden="true"
+                        />
                       </a>
+                      <div class="card-body">
+                        <strong>{item.title}</strong>
+                        <div class="meta">
+                          <span data-time></span>
+                          <span class={`badge ${item.country}`} title={item.country}>
+                            {countryFlag(item.country)}
+                          </span>
+                          <span>{device?.name ?? item.deviceId}</span>
+                          {item.savedAt ? (
+                            <span data-i18n="saved">saved</span>
+                          ) : null}
+                        </div>
+                        <a class="download" href={downloadHref} download={downloadName} data-i18n="download">
+                          Download
+                        </a>
+                      </div>
                     </article>
                   );
                 })
