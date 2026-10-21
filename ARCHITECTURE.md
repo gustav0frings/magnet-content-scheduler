@@ -48,6 +48,10 @@ Filtres :
 
 **Publiée** : coche + libellé Publiée / Non publiée (EN : Published / Not published). Télécharger marque publiée et grise le bouton. La coche marque ou annule, sans télécharger. `publishedAt` sur l’item. `POST /api/items/published` `{ "id", "published" }`. Distinct de `savedAt`.
 
+## Comptes (`/accounts`)
+
+Liste sur UploadThing (`magnet-accounts.json`) : nom, `deviceId`, `warmupStartedAt` (`YYYY-MM-DD` ou null). En warm-up → **Jour N** (jour 1 = date de début). API `GET|POST|PATCH|DELETE /api/accounts`.
+
 ## Envoi (AI) — sans redeploy, sans Blob Vercel
 
 La vidéo et le planning vivent sur **UploadThing** (plan free). Vercel n’héberge que le front.

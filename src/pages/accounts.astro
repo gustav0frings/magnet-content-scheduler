@@ -1,0 +1,408 @@
+---
+export const prerender = false;
+
+import "../styles/global.css";
+import { listAccounts } from "../lib/accounts";
+import {
+  COUNTRY_FLAGS,
+  countryFlag,
+  listDevices,
+} from "../lib/devices";
+import { COOKIE_LANG, messages, UI_LANGS } from "../lib/i18n";
+
+const devices = await listDevices();
+const accounts = await listAccounts();
+
+const boot = {
+  devices,
+  accounts,
+  flags: COUNTRY_FLAGS,
+  langs: UI_LANGS,
+  messages,
+  cookieLang: COOKIE_LANG,
+};
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Magnet · Accounts</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Serif:wght@600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="wrap" id="app">
+      <header>
+        <div class="header-row">
+          <div>
+            <h1 data-i18n="accountsTitle">Accounts</h1>
+            <p data-i18n="accountsSubtitle">Warm-up and device per account.</p>
+          </div>
+          <nav class="nav-links">
+            <a href="/" data-i18n="navCalendar">Calendar</a>
+            <a href="/accounts" class="nav-current" data-i18n="navAccounts">Accounts</a>
+          </nav>
+        </div>
+      </header>
+
+      <div class="pickers">
+        <label class="field">
+          <span data-i18n="language">Language</span>
+          <select id="lang" aria-label="Language">
+            {UI_LANGS.map((l) => (
+              <option value={l.id}>{l.label}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <section class="account-add">
+        <h2 data-i18n="accountAdd">Add account</h2>
+        <form id="add-form" class="account-add-form">
+          <label class="field">
+            <span data-i18n="accountName">Account</span>
+            <input id="add-name" type="text" maxlength="60" required autocomplete="off" />
+          </label>
+          <label class="field">
+            <span data-i18n="accountDevice">Device</span>
+            <select id="add-device">
+              <option value="" data-i18n-option="accountNoDevice">No device</option>
+              {devices.map((d) => (
+                <option value={d.id}>
+                  {countryFlag(d.country)} {d.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label class="field field-check">
+            <span data-i18n="accountWarmup">Warm-up</span>
+            <label class="check-row">
+              <input id="add-warmup" type="checkbox" />
+              <span data-i18n="accountWarmupOn">In warm-up</span>
+            </label>
+          </label>
+          <label class="field" id="add-warmup-date-field" hidden>
+            <span data-i18n="accountWarmupStart">Start date</span>
+            <input id="add-warmup-date" type="date" />
+          </label>
+          <button type="submit" class="primary account-add-btn" data-i18n="accountAddSubmit">
+            Add
+          </button>
+        </form>
+        <p class="register-error" id="add-error" hidden></p>
+      </section>
+
+      <p class="empty accounts-empty" id="accounts-empty" data-i18n="accountEmpty" hidden>
+        No accounts yet.
+      </p>
+      <div id="accounts-list" class="accounts-list"></div>
+    </div>
+
+    <script define:vars={{ boot }}>
+      const cfg = boot;
+      let accounts = [...(cfg.accounts || [])];
+      const devices = [...(cfg.devices || [])];
+      const tAll = cfg.messages;
+      const flags = cfg.flags || {};
+
+      function getCookie(name) {
+        const m = document.cookie.match(
+          new RegExp("(?:^|; )" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "=([^;]*)"),
+        );
+        return m ? decodeURIComponent(m[1]) : "";
+      }
+
+      function setCookie(name, value, days = 400) {
+        if (!value) return;
+        const maxAge = days * 24 * 60 * 60;
+        const secure = location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
+      }
+
+      let lang = getCookie(cfg.cookieLang) === "fr" ? "fr" : "en";
+
+      function t() {
+        return tAll[lang] || tAll.en;
+      }
+
+      function fill(template, vars) {
+        return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+      }
+
+      function flag(country) {
+        return flags[country] || country;
+      }
+
+      function todayKey() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      }
+
+      function dayCount(start) {
+        if (!start) return null;
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(start);
+        if (!m) return null;
+        const a = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        const now = new Date();
+        const b = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const ms = b.getTime() - a.getTime();
+        if (ms < 0) return 0;
+        return Math.floor(ms / 86400000) + 1;
+      }
+
+      const listEl = document.getElementById("accounts-list");
+      const emptyEl = document.getElementById("accounts-empty");
+      const langSelect = document.getElementById("lang");
+      const addForm = document.getElementById("add-form");
+      const addName = document.getElementById("add-name");
+      const addDevice = document.getElementById("add-device");
+      const addWarmup = document.getElementById("add-warmup");
+      const addWarmupDateField = document.getElementById("add-warmup-date-field");
+      const addWarmupDate = document.getElementById("add-warmup-date");
+      const addError = document.getElementById("add-error");
+
+      function applyI18n() {
+        const m = t();
+        document.documentElement.lang = lang;
+        document.querySelectorAll("[data-i18n]").forEach((el) => {
+          const key = el.getAttribute("data-i18n");
+          if (typeof m[key] === "string") el.textContent = m[key];
+        });
+        document.querySelectorAll("[data-i18n-option]").forEach((el) => {
+          const key = el.getAttribute("data-i18n-option");
+          if (typeof m[key] === "string") el.textContent = m[key];
+        });
+        if (langSelect) langSelect.value = lang;
+      }
+
+      async function patchAccount(id, body) {
+        const res = await fetch("/api/accounts", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id, ...body }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "failed");
+        const idx = accounts.findIndex((a) => a.id === id);
+        if (idx >= 0) accounts[idx] = data.account;
+        return data.account;
+      }
+
+      function renderList() {
+        const m = t();
+        listEl.innerHTML = "";
+        emptyEl.hidden = accounts.length > 0;
+
+        for (const account of accounts) {
+          const days = dayCount(account.warmupStartedAt);
+          const row = document.createElement("article");
+          row.className = "account-card";
+          row.dataset.id = account.id;
+
+          const top = document.createElement("div");
+          top.className = "account-card-top";
+          const title = document.createElement("strong");
+          title.className = "account-name";
+          title.textContent = account.name;
+          top.appendChild(title);
+
+          const daysEl = document.createElement("span");
+          daysEl.className = days != null ? "account-days is-on" : "account-days";
+          daysEl.textContent = days != null ? fill(m.accountDays, { n: String(days) }) : "—";
+          top.appendChild(daysEl);
+          row.appendChild(top);
+
+          const deviceField = document.createElement("label");
+          deviceField.className = "field";
+          const deviceLabelEl = document.createElement("span");
+          deviceLabelEl.setAttribute("data-i18n", "accountDevice");
+          deviceLabelEl.textContent = m.accountDevice;
+          deviceField.appendChild(deviceLabelEl);
+          const deviceSelect = document.createElement("select");
+          const none = document.createElement("option");
+          none.value = "";
+          none.textContent = m.accountNoDevice;
+          deviceSelect.appendChild(none);
+          for (const d of devices) {
+            const opt = document.createElement("option");
+            opt.value = d.id;
+            opt.textContent = `${flag(d.country)} ${d.name}`;
+            deviceSelect.appendChild(opt);
+          }
+          deviceSelect.value = account.deviceId || "";
+          deviceSelect.addEventListener("change", async () => {
+            deviceSelect.disabled = true;
+            try {
+              await patchAccount(account.id, {
+                deviceId: deviceSelect.value || null,
+              });
+            } catch {
+              deviceSelect.value = account.deviceId || "";
+              alert(m.accountSaveError);
+            } finally {
+              deviceSelect.disabled = false;
+            }
+          });
+          deviceField.appendChild(deviceSelect);
+          row.appendChild(deviceField);
+
+          const warmupBlock = document.createElement("div");
+          warmupBlock.className = "account-warmup";
+          const checkLabel = document.createElement("label");
+          checkLabel.className = "check-row";
+          const check = document.createElement("input");
+          check.type = "checkbox";
+          check.checked = Boolean(account.warmupStartedAt);
+          const checkText = document.createElement("span");
+          checkText.textContent = check.checked ? m.accountWarmupOn : m.accountWarmupOff;
+          checkLabel.append(check, checkText);
+          warmupBlock.appendChild(checkLabel);
+
+          const dateField = document.createElement("label");
+          dateField.className = "field";
+          dateField.hidden = !check.checked;
+          const dateSpan = document.createElement("span");
+          dateSpan.setAttribute("data-i18n", "accountWarmupStart");
+          dateSpan.textContent = m.accountWarmupStart;
+          dateField.appendChild(dateSpan);
+          const dateInput = document.createElement("input");
+          dateInput.type = "date";
+          dateInput.value = account.warmupStartedAt || todayKey();
+          dateField.appendChild(dateInput);
+          warmupBlock.appendChild(dateField);
+
+          async function saveWarmup(startedAt) {
+            check.disabled = true;
+            dateInput.disabled = true;
+            try {
+              const updated = await patchAccount(account.id, {
+                warmupStartedAt: startedAt,
+              });
+              account.warmupStartedAt = updated.warmupStartedAt;
+              const n = dayCount(account.warmupStartedAt);
+              daysEl.className = n != null ? "account-days is-on" : "account-days";
+              daysEl.textContent = n != null ? fill(m.accountDays, { n: String(n) }) : "—";
+              checkText.textContent = account.warmupStartedAt
+                ? m.accountWarmupOn
+                : m.accountWarmupOff;
+              dateField.hidden = !account.warmupStartedAt;
+            } catch {
+              check.checked = Boolean(account.warmupStartedAt);
+              dateInput.value = account.warmupStartedAt || todayKey();
+              dateField.hidden = !account.warmupStartedAt;
+              alert(m.accountSaveError);
+            } finally {
+              check.disabled = false;
+              dateInput.disabled = false;
+            }
+          }
+
+          check.addEventListener("change", () => {
+            if (check.checked) {
+              dateField.hidden = false;
+              if (!dateInput.value) dateInput.value = todayKey();
+              saveWarmup(dateInput.value);
+            } else {
+              saveWarmup(null);
+            }
+          });
+          dateInput.addEventListener("change", () => {
+            if (!check.checked) return;
+            saveWarmup(dateInput.value || todayKey());
+          });
+
+          row.appendChild(warmupBlock);
+
+          const del = document.createElement("button");
+          del.type = "button";
+          del.className = "linkish account-delete";
+          del.setAttribute("data-i18n", "accountDelete");
+          del.textContent = m.accountDelete;
+          del.addEventListener("click", async () => {
+            del.disabled = true;
+            try {
+              const res = await fetch("/api/accounts", {
+                method: "DELETE",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ id: account.id }),
+              });
+              if (!res.ok) throw new Error("failed");
+              accounts = accounts.filter((a) => a.id !== account.id);
+              renderList();
+              applyI18n();
+            } catch {
+              alert(m.accountSaveError);
+              del.disabled = false;
+            }
+          });
+          row.appendChild(del);
+
+          listEl.appendChild(row);
+        }
+      }
+
+      addWarmup.addEventListener("change", () => {
+        addWarmupDateField.hidden = !addWarmup.checked;
+        if (addWarmup.checked && !addWarmupDate.value) {
+          addWarmupDate.value = todayKey();
+        }
+      });
+
+      addForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        addError.hidden = true;
+        const name = addName.value.trim();
+        if (!name) return;
+        const submit = addForm.querySelector("button[type=submit]");
+        submit.disabled = true;
+        try {
+          const res = await fetch("/api/accounts", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              name,
+              deviceId: addDevice.value || null,
+              warmupStartedAt: addWarmup.checked
+                ? addWarmupDate.value || todayKey()
+                : null,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "failed");
+          accounts.push(data.account);
+          accounts.sort((a, b) => a.name.localeCompare(b.name));
+          addName.value = "";
+          addDevice.value = "";
+          addWarmup.checked = false;
+          addWarmupDateField.hidden = true;
+          addWarmupDate.value = "";
+          renderList();
+          applyI18n();
+        } catch {
+          addError.textContent = t().accountSaveError;
+          addError.hidden = false;
+        } finally {
+          submit.disabled = false;
+        }
+      });
+
+      langSelect.addEventListener("change", () => {
+        lang = langSelect.value === "fr" ? "fr" : "en";
+        setCookie(cfg.cookieLang, lang);
+        renderList();
+        applyI18n();
+      });
+
+      renderList();
+      applyI18n();
+    </script>
+  </body>
+</html>

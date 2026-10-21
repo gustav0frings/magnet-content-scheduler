@@ -6,6 +6,7 @@ import { UTApi, UTFile } from "uploadthing/server";
  */
 export const SCHEDULE_FILE = "magnet-schedule.json";
 export const DEVICES_FILE = "magnet-devices.json";
+export const ACCOUNTS_FILE = "magnet-accounts.json";
 
 /** Legacy customIds (read-only fallback while migrating). */
 const LEGACY_SCHEDULE_CUSTOM_ID = "magnet-content-schedule";
