@@ -28,7 +28,7 @@ animations/  →  CLI (AI)  →  UploadThing (fichier)
 
 Defaults dans le code (`slim-fr`, `slim-us`) + enregistrement libre au premier lancement (modal → « Register a new device »).
 
-Liste complète sur UploadThing (`customId`: `magnet-content-devices`). Cookie navigateur pour le device choisi. Chaque item porte `deviceId` + `country`.
+Liste complète sur UploadThing (`customId`: `magnet-devices-v2`). Cookie navigateur pour le device choisi. Chaque item porte `deviceId` + `country`.
 
 ## Calendrier UI
 
