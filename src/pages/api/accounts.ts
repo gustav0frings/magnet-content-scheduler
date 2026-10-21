@@ -27,6 +27,7 @@ export const GET: APIRoute = async () => {
 export const POST: APIRoute = async ({ request }) => {
   let body: {
     name?: string;
+    platform?: string;
     deviceId?: string | null;
     warmupStartedAt?: string | null;
   };
@@ -44,6 +45,7 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     const account = await addAccount({
       name: body.name ?? "",
+      platform: body.platform ?? "",
       deviceId,
       warmupStartedAt: body.warmupStartedAt,
     });
@@ -58,6 +60,7 @@ export const PATCH: APIRoute = async ({ request }) => {
   let body: {
     id?: string;
     name?: string;
+    platform?: string;
     deviceId?: string | null;
     warmupStartedAt?: string | null;
   };
@@ -70,10 +73,12 @@ export const PATCH: APIRoute = async ({ request }) => {
 
   const patch: {
     name?: string;
+    platform?: string;
     deviceId?: string | null;
     warmupStartedAt?: string | null;
   } = {};
   if (body.name !== undefined) patch.name = body.name;
+  if (body.platform !== undefined) patch.platform = body.platform;
   if (body.warmupStartedAt !== undefined) {
     patch.warmupStartedAt = body.warmupStartedAt;
   }

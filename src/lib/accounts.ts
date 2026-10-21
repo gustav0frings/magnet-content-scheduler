@@ -1,8 +1,13 @@
 import { ACCOUNTS_FILE, readJsonFile, uploadJsonFile } from "./uploadthing";
 
+export type AccountPlatform = "instagram" | "tiktok";
+
+export const ACCOUNT_PLATFORMS: AccountPlatform[] = ["instagram", "tiktok"];
+
 export type Account = {
   id: string;
   name: string;
+  platform: AccountPlatform;
   /** Linked phone / device id, or null */
   deviceId: string | null;
   /**
@@ -47,10 +52,28 @@ export function normalizeAccountName(name: string): string {
   return name.trim().replace(/\s+/g, " ").slice(0, 60);
 }
 
+export function normalizePlatform(
+  raw: string | null | undefined,
+): AccountPlatform {
+  const value = String(raw ?? "")
+    .trim()
+    .toLowerCase();
+  if (value === "instagram" || value === "tiktok") return value;
+  throw new Error("platform must be instagram or tiktok");
+}
+
 function normalizeWarmupDate(raw: string | null | undefined): string | null {
   if (raw == null || raw === "") return null;
   if (!parseDayKey(raw)) throw new Error("invalid warmupStartedAt");
   return raw.trim().slice(0, 10);
+}
+
+function coercePlatform(raw: unknown): AccountPlatform {
+  try {
+    return normalizePlatform(typeof raw === "string" ? raw : undefined);
+  } catch {
+    return "tiktok";
+  }
 }
 
 export async function listAccounts(): Promise<Account[]> {
@@ -60,6 +83,7 @@ export async function listAccounts(): Promise<Account[]> {
     .filter((a) => a?.id && a?.name)
     .map((a) => ({
       ...a,
+      platform: coercePlatform(a.platform),
       deviceId: a.deviceId ?? null,
       warmupStartedAt: a.warmupStartedAt ?? null,
     }))
@@ -72,16 +96,19 @@ export async function saveAccounts(accounts: Account[]): Promise<void> {
 
 export async function addAccount(input: {
   name: string;
+  platform: string;
   deviceId?: string | null;
   warmupStartedAt?: string | null;
 }): Promise<Account> {
   const name = normalizeAccountName(input.name);
   if (!name) throw new Error("name required");
+  const platform = normalizePlatform(input.platform);
 
   const accounts = await listAccounts();
   const next: Account = {
     id: crypto.randomUUID(),
     name,
+    platform,
     deviceId: input.deviceId?.trim() || null,
     warmupStartedAt: normalizeWarmupDate(input.warmupStartedAt),
     createdAt: new Date().toISOString(),
@@ -95,6 +122,7 @@ export async function updateAccount(
   id: string,
   patch: {
     name?: string;
+    platform?: string;
     deviceId?: string | null;
     warmupStartedAt?: string | null;
   },
@@ -107,6 +135,9 @@ export async function updateAccount(
     const name = normalizeAccountName(patch.name);
     if (!name) throw new Error("name required");
     account.name = name;
+  }
+  if (patch.platform !== undefined) {
+    account.platform = normalizePlatform(patch.platform);
   }
   if (patch.deviceId !== undefined) {
     account.deviceId = patch.deviceId?.trim() || null;

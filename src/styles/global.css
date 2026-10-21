@@ -480,8 +480,39 @@ button.publish-toggle:disabled {
   gap: 0.35rem 0.75rem;
 }
 
+.account-title-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+  min-width: 0;
+}
+
 .account-name {
   font-size: 1.05rem;
+}
+
+.account-platform {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.account-platform.tiktok {
+  color: #69c9d0;
+  border-color: color-mix(in srgb, #69c9d0 45%, var(--border));
+}
+
+.account-platform.instagram {
+  color: #e1306c;
+  border-color: color-mix(in srgb, #e1306c 45%, var(--border));
 }
 
 .account-days {

@@ -50,7 +50,7 @@ Filtres :
 
 ## Comptes (`/accounts`)
 
-Liste sur UploadThing (`magnet-accounts.json`) : nom, `deviceId`, `warmupStartedAt` (`YYYY-MM-DD` ou null). En warm-up → **Jour N** (jour 1 = date de début). API `GET|POST|PATCH|DELETE /api/accounts`.
+Liste sur UploadThing (`magnet-accounts.json`) : nom, `platform` (`instagram` | `tiktok`), `deviceId`, `warmupStartedAt` (`YYYY-MM-DD` ou null). En warm-up → **Jour N** (jour 1 = date de début). API `GET|POST|PATCH|DELETE /api/accounts`.
 
 ## Envoi (AI) — sans redeploy, sans Blob Vercel
 

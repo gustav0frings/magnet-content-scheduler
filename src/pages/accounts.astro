@@ -2,7 +2,7 @@
 export const prerender = false;
 
 import "../styles/global.css";
-import { listAccounts } from "../lib/accounts";
+import { ACCOUNT_PLATFORMS, listAccounts } from "../lib/accounts";
 import {
   COUNTRY_FLAGS,
   countryFlag,
@@ -16,6 +16,7 @@ const accounts = await listAccounts();
 const boot = {
   devices,
   accounts,
+  platforms: ACCOUNT_PLATFORMS,
   flags: COUNTRY_FLAGS,
   langs: UI_LANGS,
   messages,
@@ -41,7 +42,7 @@ const boot = {
         <div class="header-row">
           <div>
             <h1 data-i18n="accountsTitle">Accounts</h1>
-            <p data-i18n="accountsSubtitle">Warm-up and device per account.</p>
+            <p data-i18n="accountsSubtitle">Platform, warm-up and device per account.</p>
           </div>
           <nav class="nav-links">
             <a href="/" data-i18n="navCalendar">Calendar</a>
@@ -67,6 +68,13 @@ const boot = {
           <label class="field">
             <span data-i18n="accountName">Account</span>
             <input id="add-name" type="text" maxlength="60" required autocomplete="off" />
+          </label>
+          <label class="field">
+            <span data-i18n="accountPlatform">Platform</span>
+            <select id="add-platform" required>
+              <option value="tiktok" data-i18n-option="accountPlatformTiktok">TikTok</option>
+              <option value="instagram" data-i18n-option="accountPlatformInstagram">Instagram</option>
+            </select>
           </label>
           <label class="field">
             <span data-i18n="accountDevice">Device</span>
@@ -107,6 +115,7 @@ const boot = {
       const cfg = boot;
       let accounts = [...(cfg.accounts || [])];
       const devices = [...(cfg.devices || [])];
+      const platforms = [...(cfg.platforms || ["tiktok", "instagram"])];
       const tAll = cfg.messages;
       const flags = cfg.flags || {};
 
@@ -138,6 +147,12 @@ const boot = {
         return flags[country] || country;
       }
 
+      function platformLabel(platform, m) {
+        return platform === "instagram"
+          ? m.accountPlatformInstagram
+          : m.accountPlatformTiktok;
+      }
+
       function todayKey() {
         const d = new Date();
         const y = d.getFullYear();
@@ -163,6 +178,7 @@ const boot = {
       const langSelect = document.getElementById("lang");
       const addForm = document.getElementById("add-form");
       const addName = document.getElementById("add-name");
+      const addPlatform = document.getElementById("add-platform");
       const addDevice = document.getElementById("add-device");
       const addWarmup = document.getElementById("add-warmup");
       const addWarmupDateField = document.getElementById("add-warmup-date-field");
@@ -209,16 +225,55 @@ const boot = {
 
           const top = document.createElement("div");
           top.className = "account-card-top";
+          const titleWrap = document.createElement("div");
+          titleWrap.className = "account-title-wrap";
           const title = document.createElement("strong");
           title.className = "account-name";
           title.textContent = account.name;
-          top.appendChild(title);
+          const platformBadge = document.createElement("span");
+          platformBadge.className = `account-platform ${account.platform || "tiktok"}`;
+          platformBadge.textContent = platformLabel(account.platform || "tiktok", m);
+          titleWrap.append(title, platformBadge);
+          top.appendChild(titleWrap);
 
           const daysEl = document.createElement("span");
           daysEl.className = days != null ? "account-days is-on" : "account-days";
           daysEl.textContent = days != null ? fill(m.accountDays, { n: String(days) }) : "—";
           top.appendChild(daysEl);
           row.appendChild(top);
+
+          const platformField = document.createElement("label");
+          platformField.className = "field";
+          const platformLabelEl = document.createElement("span");
+          platformLabelEl.setAttribute("data-i18n", "accountPlatform");
+          platformLabelEl.textContent = m.accountPlatform;
+          platformField.appendChild(platformLabelEl);
+          const platformSelect = document.createElement("select");
+          for (const p of platforms) {
+            const opt = document.createElement("option");
+            opt.value = p;
+            opt.textContent = platformLabel(p, m);
+            platformSelect.appendChild(opt);
+          }
+          platformSelect.value = account.platform || "tiktok";
+          platformSelect.addEventListener("change", async () => {
+            platformSelect.disabled = true;
+            try {
+              const updated = await patchAccount(account.id, {
+                platform: platformSelect.value,
+              });
+              account.platform = updated.platform;
+              platformBadge.className = `account-platform ${account.platform}`;
+              platformBadge.textContent = platformLabel(account.platform, m);
+            } catch {
+              platformSelect.value = account.platform || "tiktok";
+              alert(m.accountSaveError);
+            } finally {
+              platformSelect.disabled = false;
+            }
+          });
+          platformField.appendChild(platformSelect);
+          row.appendChild(platformField);
 
           const deviceField = document.createElement("label");
           deviceField.className = "field";
@@ -369,6 +424,7 @@ const boot = {
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
               name,
+              platform: addPlatform.value,
               deviceId: addDevice.value || null,
               warmupStartedAt: addWarmup.checked
                 ? addWarmupDate.value || todayKey()
@@ -380,6 +436,7 @@ const boot = {
           accounts.push(data.account);
           accounts.sort((a, b) => a.name.localeCompare(b.name));
           addName.value = "";
+          addPlatform.value = "tiktok";
           addDevice.value = "";
           addWarmup.checked = false;
           addWarmupDateField.hidden = true;
