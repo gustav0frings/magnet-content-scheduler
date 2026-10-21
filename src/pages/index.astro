@@ -241,6 +241,9 @@ const boot = {
             <button type="button" class="primary" id="reg-submit" data-i18n="modalRegisterSubmit">
               Register & continue
             </button>
+            <button type="button" class="linkish register-back" id="reg-back" data-i18n="modalRegisterBack">
+              ← Back to device list
+            </button>
           </div>
 
           <button type="button" class="primary" id="device-done" disabled data-i18n="modalContinue">
@@ -304,6 +307,7 @@ const boot = {
       const regName = document.getElementById("reg-name");
       const regCountry = document.getElementById("reg-country");
       const regSubmit = document.getElementById("reg-submit");
+      const regBack = document.getElementById("reg-back");
       const regError = document.getElementById("reg-error");
 
       function showPickDevice() {
@@ -537,6 +541,10 @@ const boot = {
 
       showRegister.addEventListener("click", () => {
         showRegisterDevice();
+      });
+
+      regBack.addEventListener("click", () => {
+        showPickDevice();
       });
 
       function normalizeNameLive(raw) {

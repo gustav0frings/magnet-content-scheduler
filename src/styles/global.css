@@ -358,6 +358,13 @@ button.primary:disabled {
   margin: 0.25rem 0 0.85rem;
 }
 
+.register-back {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 0.35rem;
+}
+
 .register-form {
   display: grid;
   gap: 0.75rem;
