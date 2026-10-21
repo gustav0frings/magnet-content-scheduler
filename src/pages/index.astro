@@ -436,6 +436,8 @@ const boot = {
         pendingDevice = deviceId || "";
         registerForm.hidden = true;
         regError.hidden = true;
+        deviceDone.hidden = false;
+        showRegister.hidden = false;
         stepLang.hidden = false;
         stepDevice.hidden = true;
         langNext.disabled = !pendingLang;
@@ -468,7 +470,11 @@ const boot = {
 
       modalDevice.addEventListener("change", () => {
         pendingDevice = modalDevice.value || "";
-        if (pendingDevice) registerForm.hidden = true;
+        if (pendingDevice) {
+          registerForm.hidden = true;
+          deviceDone.hidden = false;
+          showRegister.hidden = false;
+        }
         deviceDone.disabled = !pendingDevice;
       });
 
@@ -477,8 +483,14 @@ const boot = {
         if (!registerForm.hidden) {
           pendingDevice = "";
           modalDevice.value = "";
+          deviceDone.hidden = true;
           deviceDone.disabled = true;
+          showRegister.hidden = true;
           regName.focus();
+        } else {
+          deviceDone.hidden = false;
+          showRegister.hidden = false;
+          deviceDone.disabled = !pendingDevice;
         }
       });
 
