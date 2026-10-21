@@ -26,9 +26,16 @@ animations/  →  CLI (AI)  →  UploadThing (fichier)
 
 ## Devices
 
-Defaults dans le code (`slim-fr`, `slim-us`) + enregistrement libre au premier lancement (modal → « Register a new device »).
+Enregistrement libre au premier lancement (modal → « Register a new device »). Liste sur UploadThing (`magnet-devices.json`). Cookie pour le device choisi.
 
-Liste complète sur UploadThing (`magnet-devices.json`, delete+reupload by filename — pas de customId, sinon 409). Cookie pour le device choisi.
+### Routing langue → device
+
+Si une personne a deux phones (FR + US), la langue de la vidéo choisit le device :
+
+- **EN** → device `…-us` (country US)
+- **FR** → device `…-fr` (country FR)
+
+Exemple : `slim-iphone-1-fr` vs `slim-iphone-1-us`.
 
 ## Calendrier UI
 
