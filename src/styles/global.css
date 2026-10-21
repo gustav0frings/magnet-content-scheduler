@@ -238,10 +238,6 @@ button.linkish:hover {
   backdrop-filter: blur(8px);
 }
 
-.modal[hidden] {
-  display: none;
-}
-
 .modal-card {
   width: min(100%, 420px);
   background: var(--surface);
@@ -312,8 +308,4 @@ button.primary {
 button.primary:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-}
-
-#app[hidden] {
-  display: none;
 }
