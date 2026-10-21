@@ -286,11 +286,11 @@ const boot = {
       }
 
       function applyFilters() {
-        const country = countrySelect.value;
+        // Prefer the live <select> values (user may have changed them)
+        deviceId = deviceSelect.value || "";
+        const country = countrySelect.value || "";
         const m = t();
         const device = devices.find((d) => d.id === deviceId);
-
-        if (deviceSelect) deviceSelect.value = deviceId || "";
 
         hint.textContent = device
           ? fill(m.showingDevice, { name: device.name, country: device.country })
@@ -299,8 +299,10 @@ const boot = {
             : m.showingAll;
 
         document.querySelectorAll(".card").forEach((card) => {
-          const okDevice = !deviceId || card.dataset.device === deviceId;
-          const okCountry = !country || card.dataset.country === country;
+          const cardDevice = card.getAttribute("data-device") || "";
+          const cardCountry = card.getAttribute("data-country") || "";
+          const okDevice = !deviceId || cardDevice === deviceId;
+          const okCountry = !country || cardCountry === country;
           card.hidden = !(okDevice && okCountry);
         });
 
@@ -308,7 +310,10 @@ const boot = {
           const cards = [...section.querySelectorAll(".card")];
           const visible = cards.filter((c) => !c.hidden);
           const empty = section.querySelector("[data-empty]");
-          if (empty) empty.hidden = visible.length > 0;
+          if (empty) {
+            // Show the dash only when this day has no visible cards
+            empty.hidden = visible.length > 0;
+          }
         });
       }
 
