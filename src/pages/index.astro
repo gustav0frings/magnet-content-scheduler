@@ -54,7 +54,7 @@ const boot = {
               <a href="/accounts" data-i18n="navAccounts">Accounts</a>
             </nav>
             <button type="button" class="linkish" id="reopen-setup" data-i18n="changeSetup">
-              Change device / language
+              Change account / language
             </button>
           </div>
         </div>
@@ -62,12 +62,13 @@ const boot = {
 
       <div class="pickers">
         <label class="field">
-          <span data-i18n="device">Device</span>
-          <select id="device" aria-label="Device">
-            <option value="" data-i18n-option="allDevices">All devices</option>
+          <span data-i18n="device">Account</span>
+          <select id="device" aria-label="Account">
+            <option value="" data-i18n-option="allDevices">All accounts</option>
             {devices.map((d) => (
               <option value={d.id}>
                 {countryFlag(d.country)} {d.name}
+                {d.platform === "instagram" ? " · IG" : " · TT"}
               </option>
             ))}
           </select>
@@ -134,21 +135,28 @@ const boot = {
         </div>
 
         <div class="modal-step" id="step-device" hidden>
-          <p class="modal-label" data-i18n="modalDevice">Choose your device</p>
+          <p class="modal-label" data-i18n="modalDevice">Choose your account</p>
           <label class="field modal-device-field" id="modal-device-field">
-            <select id="modal-device" aria-label="Device">
+            <select id="modal-device" aria-label="Account">
               <option value="">—</option>
             </select>
           </label>
 
           <button type="button" class="linkish register-toggle" id="show-register" data-i18n="modalRegister">
-            Not in the list? Register a new device
+            Not in the list? Register a new account
           </button>
 
           <div class="register-form" id="register-form" hidden>
             <label class="field">
-              <span data-i18n="modalRegisterName">Device name</span>
+              <span data-i18n="modalRegisterName">Account name</span>
               <input id="reg-name" type="text" autocomplete="off" maxlength="40" />
+            </label>
+            <label class="field">
+              <span data-i18n="modalRegisterPlatform">Platform</span>
+              <select id="reg-platform">
+                <option value="tiktok" data-i18n-option="accountPlatformTiktok">TikTok</option>
+                <option value="instagram" data-i18n-option="accountPlatformInstagram">Instagram</option>
+              </select>
             </label>
             <label class="field">
               <span data-i18n="modalRegisterCountry">Country</span>
@@ -165,7 +173,7 @@ const boot = {
               Register & continue
             </button>
             <button type="button" class="linkish register-back" id="reg-back" data-i18n="modalRegisterBack">
-              ← Back to device list
+              ← Back to account list
             </button>
           </div>
 
@@ -377,7 +385,17 @@ const boot = {
               meta.appendChild(badge);
               const deviceName = document.createElement("span");
               deviceName.className = "device-name";
-              deviceName.textContent = device?.name ?? item.deviceId;
+              const plat =
+                device?.platform === "instagram"
+                  ? "IG"
+                  : device?.platform === "tiktok"
+                    ? "TT"
+                    : "";
+              deviceName.textContent = device
+                ? plat
+                  ? `${device.name} · ${plat}`
+                  : device.name
+                : item.deviceId;
               meta.appendChild(deviceName);
               if (item.savedAt) {
                 const saved = document.createElement("span");
@@ -480,6 +498,7 @@ const boot = {
       const registerForm = document.getElementById("register-form");
       const modalDeviceField = document.getElementById("modal-device-field");
       const regName = document.getElementById("reg-name");
+      const regPlatform = document.getElementById("reg-platform");
       const regCountry = document.getElementById("reg-country");
       const regSubmit = document.getElementById("reg-submit");
       const regBack = document.getElementById("reg-back");
@@ -522,7 +541,8 @@ const boot = {
         for (const d of devices) {
           const opt = document.createElement("option");
           opt.value = d.id;
-          opt.textContent = `${flag(d.country)} ${d.name}`;
+          const plat = d.platform === "instagram" ? "IG" : "TT";
+          opt.textContent = `${flag(d.country)} ${d.name} · ${plat}`;
           deviceSelect.appendChild(opt);
         }
         if ([...deviceSelect.options].some((o) => o.value === current)) {
@@ -560,7 +580,8 @@ const boot = {
         for (const d of devices) {
           const opt = document.createElement("option");
           opt.value = d.id;
-          opt.textContent = `${flag(d.country)} ${d.name}`;
+          const plat = d.platform === "instagram" ? "IG" : "TT";
+          opt.textContent = `${flag(d.country)} ${d.name} · ${plat}`;
           modalDevice.appendChild(opt);
         }
         if (pendingDevice && [...modalDevice.options].some((o) => o.value === pendingDevice)) {
@@ -772,7 +793,11 @@ const boot = {
           const res = await fetch("/api/devices", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ name, country }),
+            body: JSON.stringify({
+              name,
+              country,
+              platform: regPlatform.value || "tiktok",
+            }),
           });
           const body = await res.json();
           if (!res.ok) throw new Error(body.error || "failed");

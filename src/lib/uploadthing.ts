@@ -5,8 +5,8 @@ import { UTApi, UTFile } from "uploadthing/server";
  * No fixed customId — those 409 when overwritten. We delete by filename then re-upload.
  */
 export const SCHEDULE_FILE = "magnet-schedule.json";
+/** Accounts live here (still named devices on disk / in schedule `deviceId`). */
 export const DEVICES_FILE = "magnet-devices.json";
-export const ACCOUNTS_FILE = "magnet-accounts.json";
 
 /** Legacy customIds (read-only fallback while migrating). */
 const LEGACY_SCHEDULE_CUSTOM_ID = "magnet-content-schedule";

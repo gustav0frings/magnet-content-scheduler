@@ -24,16 +24,14 @@ animations/  →  CLI (AI)  →  UploadThing (fichier)
 | Mini-app Vercel | UI + API qui **lisent** le schedule sur UploadThing (pas de stockage Vercel) |
 | Téléphone | Ouvre le lien public, choisit son device ; raccourci iPhone peut auto-sauver dans Photos |
 
-## Devices
+## Comptes
 
-Enregistrement libre au premier lancement (modal → « Register a new device »). Liste sur UploadThing (`magnet-devices.json`). Cookie pour le device choisi.
+Un seul objet : le **compte** (UI). Fichier `magnet-devices.json` ; le schedule garde `deviceId`. Création : nom, `platform` (`instagram` | `tiktok`), pays, optionnel `warmupStartedAt`. Cookie pour le compte choisi. `/accounts` = la même liste.
 
-### Routing langue → device
+### Routing langue → compte
 
-Si une personne a deux phones (FR + US), la langue de la vidéo choisit le device :
-
-- **EN** → device `…-us` (country US)
-- **FR** → device `…-fr` (country FR)
+- **EN** → compte `…-us` (country US)
+- **FR** → compte `…-fr` (country FR)
 
 Exemple : `slim-iphone-1-fr` vs `slim-iphone-1-us`.
 
@@ -41,16 +39,9 @@ Exemple : `slim-iphone-1-fr` vs `slim-iphone-1-us`.
 
 Par défaut : **jour courant + 7 jours suivants** (8 jours au total).
 
-Filtres :
-
-- device (sélecteur principal)
-- pays (optionnel, dérivé des devices)
+Filtres : compte, pays.
 
 **Publiée** : coche + libellé Publiée / Non publiée (EN : Published / Not published). Télécharger marque publiée et grise le bouton. La coche marque ou annule, sans télécharger. `publishedAt` sur l’item. `POST /api/items/published` `{ "id", "published" }`. Distinct de `savedAt`.
-
-## Comptes (`/accounts`)
-
-Liste sur UploadThing (`magnet-accounts.json`) : nom, `platform` (`instagram` | `tiktok`), `deviceId`, `warmupStartedAt` (`YYYY-MM-DD` ou null). En warm-up → **Jour N** (jour 1 = date de début). API `GET|POST|PATCH|DELETE /api/accounts`.
 
 ## Envoi (AI) — sans redeploy, sans Blob Vercel
 

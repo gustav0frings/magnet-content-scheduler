@@ -1,6 +1,6 @@
 /**
- * List devices available for `npm run send -- --to …`
- * (defaults + anything registered in the web UI — stored on UploadThing)
+ * List accounts available for `npm run send -- --to …`
+ * (stored on UploadThing as magnet-devices.json)
  *
  *   npm run devices
  *
@@ -18,15 +18,19 @@ async function main() {
 
   const devices = await listDevices();
   if (devices.length === 0) {
-    console.log("No devices.");
+    console.log("No accounts.");
     return;
   }
 
-  console.log("Devices (use --to <id> with npm run send):\n");
+  console.log("Accounts (use --to <id> with npm run send):\n");
   for (const d of devices) {
-    console.log(`  ${d.id.padEnd(24)}  ${d.name}  (${d.country})`);
+    const plat = d.platform === "instagram" ? "IG" : "TT";
+    const warm = d.warmupStartedAt ? ` warmup=${d.warmupStartedAt}` : "";
+    console.log(
+      `  ${d.id.padEnd(24)}  ${d.name}  (${d.country}, ${plat})${warm}`,
+    );
   }
-  console.log(`\n${devices.length} device(s)`);
+  console.log(`\n${devices.length} account(s)`);
 }
 
 main().catch((err) => {

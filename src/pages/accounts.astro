@@ -2,8 +2,9 @@
 export const prerender = false;
 
 import "../styles/global.css";
-import { ACCOUNT_PLATFORMS, listAccounts } from "../lib/accounts";
 import {
+  ACCOUNT_PLATFORMS,
+  COUNTRY_CODES,
   COUNTRY_FLAGS,
   countryFlag,
   listDevices,
@@ -11,12 +12,11 @@ import {
 import { COOKIE_LANG, messages, UI_LANGS } from "../lib/i18n";
 
 const devices = await listDevices();
-const accounts = await listAccounts();
 
 const boot = {
   devices,
-  accounts,
   platforms: ACCOUNT_PLATFORMS,
+  countries: COUNTRY_CODES,
   flags: COUNTRY_FLAGS,
   langs: UI_LANGS,
   messages,
@@ -42,7 +42,7 @@ const boot = {
         <div class="header-row">
           <div>
             <h1 data-i18n="accountsTitle">Accounts</h1>
-            <p data-i18n="accountsSubtitle">Platform, warm-up and device per account.</p>
+            <p data-i18n="accountsSubtitle">Platform and warm-up for each account.</p>
           </div>
           <nav class="nav-links">
             <a href="/" data-i18n="navCalendar">Calendar</a>
@@ -77,12 +77,11 @@ const boot = {
             </select>
           </label>
           <label class="field">
-            <span data-i18n="accountDevice">Device</span>
-            <select id="add-device">
-              <option value="" data-i18n-option="accountNoDevice">No device</option>
-              {devices.map((d) => (
-                <option value={d.id}>
-                  {countryFlag(d.country)} {d.name}
+            <span data-i18n="country">Country</span>
+            <select id="add-country" required>
+              {COUNTRY_CODES.map((c) => (
+                <option value={c}>
+                  {countryFlag(c)} {c}
                 </option>
               ))}
             </select>
@@ -114,7 +113,7 @@ const boot = {
             <tr>
               <th data-i18n="accountName">Account</th>
               <th data-i18n="accountPlatform">Platform</th>
-              <th data-i18n="accountDevice">Device</th>
+              <th data-i18n="country">Country</th>
               <th data-i18n="accountWarmup">Warm-up</th>
               <th data-i18n="accountWarmupStart">Start date</th>
               <th></th>
@@ -128,9 +127,9 @@ const boot = {
 
     <script define:vars={{ boot }}>
       const cfg = boot;
-      let accounts = [...(cfg.accounts || [])];
-      const devices = [...(cfg.devices || [])];
+      let devices = [...(cfg.devices || [])];
       const platforms = [...(cfg.platforms || ["tiktok", "instagram"])];
+      const countries = [...(cfg.countries || ["FR", "US", "UK"])];
       const tAll = cfg.messages;
       const flags = cfg.flags || {};
 
@@ -195,7 +194,7 @@ const boot = {
       const addForm = document.getElementById("add-form");
       const addName = document.getElementById("add-name");
       const addPlatform = document.getElementById("add-platform");
-      const addDevice = document.getElementById("add-device");
+      const addCountry = document.getElementById("add-country");
       const addWarmup = document.getElementById("add-warmup");
       const addWarmupDateField = document.getElementById("add-warmup-date-field");
       const addWarmupDate = document.getElementById("add-warmup-date");
@@ -215,26 +214,26 @@ const boot = {
         if (langSelect) langSelect.value = lang;
       }
 
-      async function patchAccount(id, body) {
-        const res = await fetch("/api/accounts", {
+      async function patchDevice(id, body) {
+        const res = await fetch("/api/devices", {
           method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ id, ...body }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "failed");
-        const idx = accounts.findIndex((a) => a.id === id);
-        if (idx >= 0) accounts[idx] = data.account;
-        return data.account;
+        const idx = devices.findIndex((d) => d.id === id);
+        if (idx >= 0) devices[idx] = data.device;
+        return data.device;
       }
 
       function renderList() {
         const m = t();
         listEl.innerHTML = "";
-        emptyEl.hidden = accounts.length > 0;
-        tableWrap.hidden = accounts.length === 0;
+        emptyEl.hidden = devices.length > 0;
+        tableWrap.hidden = devices.length === 0;
 
-        for (const account of accounts) {
+        for (const account of devices) {
           const days = dayCount(account.warmupStartedAt);
           const tr = document.createElement("tr");
           tr.dataset.id = account.id;
@@ -257,7 +256,7 @@ const boot = {
           platformSelect.addEventListener("change", async () => {
             platformSelect.disabled = true;
             try {
-              const updated = await patchAccount(account.id, {
+              const updated = await patchDevice(account.id, {
                 platform: platformSelect.value,
               });
               account.platform = updated.platform;
@@ -271,35 +270,32 @@ const boot = {
           platformTd.appendChild(platformSelect);
           tr.appendChild(platformTd);
 
-          const deviceTd = document.createElement("td");
-          const deviceSelect = document.createElement("select");
-          deviceSelect.className = "table-select";
-          const none = document.createElement("option");
-          none.value = "";
-          none.textContent = m.accountNoDevice;
-          deviceSelect.appendChild(none);
-          for (const d of devices) {
+          const countryTd = document.createElement("td");
+          const countrySelect = document.createElement("select");
+          countrySelect.className = "table-select";
+          for (const c of countries) {
             const opt = document.createElement("option");
-            opt.value = d.id;
-            opt.textContent = `${flag(d.country)} ${d.name}`;
-            deviceSelect.appendChild(opt);
+            opt.value = c;
+            opt.textContent = `${flag(c)} ${c}`;
+            countrySelect.appendChild(opt);
           }
-          deviceSelect.value = account.deviceId || "";
-          deviceSelect.addEventListener("change", async () => {
-            deviceSelect.disabled = true;
+          countrySelect.value = account.country;
+          countrySelect.addEventListener("change", async () => {
+            countrySelect.disabled = true;
             try {
-              await patchAccount(account.id, {
-                deviceId: deviceSelect.value || null,
+              const updated = await patchDevice(account.id, {
+                country: countrySelect.value,
               });
+              account.country = updated.country;
             } catch {
-              deviceSelect.value = account.deviceId || "";
+              countrySelect.value = account.country;
               alert(m.accountSaveError);
             } finally {
-              deviceSelect.disabled = false;
+              countrySelect.disabled = false;
             }
           });
-          deviceTd.appendChild(deviceSelect);
-          tr.appendChild(deviceTd);
+          countryTd.appendChild(countrySelect);
+          tr.appendChild(countryTd);
 
           const warmupTd = document.createElement("td");
           warmupTd.className = "account-warmup-cell";
@@ -328,7 +324,7 @@ const boot = {
             check.disabled = true;
             dateInput.disabled = true;
             try {
-              const updated = await patchAccount(account.id, {
+              const updated = await patchDevice(account.id, {
                 warmupStartedAt: startedAt,
               });
               account.warmupStartedAt = updated.warmupStartedAt;
@@ -374,13 +370,13 @@ const boot = {
           del.addEventListener("click", async () => {
             del.disabled = true;
             try {
-              const res = await fetch("/api/accounts", {
+              const res = await fetch("/api/devices", {
                 method: "DELETE",
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify({ id: account.id }),
               });
               if (!res.ok) throw new Error("failed");
-              accounts = accounts.filter((a) => a.id !== account.id);
+              devices = devices.filter((d) => d.id !== account.id);
               renderList();
               applyI18n();
             } catch {
@@ -410,13 +406,13 @@ const boot = {
         const submit = addForm.querySelector("button[type=submit]");
         submit.disabled = true;
         try {
-          const res = await fetch("/api/accounts", {
+          const res = await fetch("/api/devices", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
               name,
               platform: addPlatform.value,
-              deviceId: addDevice.value || null,
+              country: addCountry.value,
               warmupStartedAt: addWarmup.checked
                 ? addWarmupDate.value || todayKey()
                 : null,
@@ -424,11 +420,10 @@ const boot = {
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || "failed");
-          accounts.push(data.account);
-          accounts.sort((a, b) => a.name.localeCompare(b.name));
+          devices.push(data.device);
+          devices.sort((a, b) => a.name.localeCompare(b.name));
           addName.value = "";
           addPlatform.value = "tiktok";
-          addDevice.value = "";
           addWarmup.checked = false;
           addWarmupDateField.hidden = true;
           addWarmupDate.value = "";

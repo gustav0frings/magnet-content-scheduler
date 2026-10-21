@@ -22,7 +22,7 @@ function usage(deviceIds?: string[]): never {
   console.error(`Usage:
   npm run send -- --to <deviceId> --at "<YYYY-MM-DD HH:mm>" [--title "..."] <file.mp4>
 
-Devices: ${deviceIds?.join(", ") || "listDevices() / UploadThing + defaults"}
+Accounts (--to ids): ${deviceIds?.join(", ") || "listDevices() / UploadThing + defaults"}
 Schedule + video both live on UploadThing (free). No Vercel Blob, no redeploy.`);
   process.exit(1);
 }
