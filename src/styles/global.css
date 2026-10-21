@@ -309,3 +309,35 @@ button.primary:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+.register-toggle {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 0.25rem 0 0.85rem;
+}
+
+.register-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+
+.register-form input[type="text"] {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  font: inherit;
+  width: 100%;
+}
+
+.register-error {
+  margin: 0;
+  color: var(--us);
+  font-size: 0.85rem;
+}

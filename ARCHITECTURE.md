@@ -24,20 +24,11 @@ animations/  →  CLI (AI)  →  UploadThing (fichier)
 | Mini-app Vercel | UI + API qui **lisent** le schedule sur UploadThing (pas de stockage Vercel) |
 | Téléphone | Ouvre le lien public, choisit son device ; raccourci iPhone peut auto-sauver dans Photos |
 
-## Devices (hardcodés)
+## Devices
 
-Pas de tokens secrets dans l’URL. Les devices sont une liste fixe dans le code (`src/lib/devices.ts`), avec un **pays**.
+Defaults dans le code (`slim-fr`, `slim-us`) + enregistrement libre au premier lancement (modal → « Register a new device »).
 
-Exemple :
-
-| id | name | country |
-| --- | --- | --- |
-| `slim-fr` | Slim FR | FR |
-| `lea-us` | Lea US | US |
-
-L’URL de l’app est **publique**. Sur le web, la personne choisit quel device elle est ; le calendrier filtre automatiquement. Le choix est mémorisé en `localStorage`.
-
-Chaque item de contenu porte `deviceId` + `country` (label / filtre).
+Liste complète sur UploadThing (`customId`: `magnet-content-devices`). Cookie navigateur pour le device choisi. Chaque item porte `deviceId` + `country`.
 
 ## Calendrier UI
 

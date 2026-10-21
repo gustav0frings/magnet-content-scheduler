@@ -1,25 +1,17 @@
 import type { ScheduleItem } from "./types";
 import {
-  getUtApi,
-  schedulePublicUrl,
-  uploadScheduleJson,
+  SCHEDULE_CUSTOM_ID,
+  readJsonFile,
+  uploadJsonFile,
 } from "./uploadthing";
 
 async function readFromUploadThing(): Promise<ScheduleItem[]> {
-  const url = schedulePublicUrl();
-  const res = await fetch(url, { cache: "no-store" });
-  if (res.status === 404) return [];
-  if (!res.ok) {
-    throw new Error(`Failed to read schedule (${res.status}) from ${url}`);
-  }
-  const text = await res.text();
-  if (!text.trim()) return [];
-  return JSON.parse(text) as ScheduleItem[];
+  const data = await readJsonFile<ScheduleItem[]>(SCHEDULE_CUSTOM_ID);
+  return data ?? [];
 }
 
 async function writeToUploadThing(items: ScheduleItem[]): Promise<void> {
-  const utapi = getUtApi();
-  await uploadScheduleJson(utapi, items);
+  await uploadJsonFile(SCHEDULE_CUSTOM_ID, "schedule.json", items);
 }
 
 export async function listItems(): Promise<ScheduleItem[]> {

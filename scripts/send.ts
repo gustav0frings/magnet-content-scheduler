@@ -13,14 +13,14 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { UTApi, UTFile } from "uploadthing/server";
-import { getDevice } from "../src/lib/devices";
+import { listDevices } from "../src/lib/devices";
 import { addItem } from "../src/lib/schedule";
 
-function usage(): never {
+function usage(deviceIds?: string[]): never {
   console.error(`Usage:
   npm run send -- --to <deviceId> --at "<YYYY-MM-DD HH:mm>" [--title "..."] <file.mp4>
 
-Devices: see src/lib/devices.ts
+Devices: ${deviceIds?.join(", ") || "listDevices() / UploadThing + defaults"}
 Schedule + video both live on UploadThing (free). No Vercel Blob, no redeploy.`);
   process.exit(1);
 }
@@ -46,13 +46,16 @@ async function main() {
     allowPositionals: true,
   });
 
-  if (values.help) usage();
+  const devices = await listDevices();
+  if (values.help) usage(devices.map((d) => d.id));
   const filePath = positionals[0];
-  if (!values.to || !values.at || !filePath) usage();
+  if (!values.to || !values.at || !filePath) usage(devices.map((d) => d.id));
 
-  const device = getDevice(values.to);
+  const device = devices.find((d) => d.id === values.to);
   if (!device) {
-    console.error(`Unknown device "${values.to}". Edit src/lib/devices.ts.`);
+    console.error(
+      `Unknown device "${values.to}". Known: ${devices.map((d) => d.id).join(", ")}. Register via the web UI.`,
+    );
     process.exit(1);
   }
 

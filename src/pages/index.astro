@@ -2,11 +2,12 @@
 export const prerender = false;
 
 import "../styles/global.css";
-import { DEVICES, countries, getDevice } from "../lib/devices";
+import { COUNTRY_CODES, countriesFrom, listDevices } from "../lib/devices";
 import { COOKIE_DEVICE, COOKIE_LANG, messages, UI_LANGS } from "../lib/i18n";
 import { inDefaultWindow, listItems } from "../lib/schedule";
 import type { ScheduleItem } from "../lib/types";
 
+const devices = await listDevices();
 const all = inDefaultWindow(await listItems());
 
 const start = new Date();
@@ -20,7 +21,6 @@ const days: {
 for (let i = 0; i < 8; i++) {
   const d = new Date(start);
   d.setDate(d.getDate() + i);
-  // Use local Y-M-D so publishAt wall-clock days match the calendar
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -42,9 +42,10 @@ for (const item of all) {
   if (bucket) bucket.items.push(item);
 }
 
-const countryList = countries();
+const countryList = countriesFrom(devices);
 const boot = {
-  devices: DEVICES,
+  devices,
+  countries: COUNTRY_CODES,
   langs: UI_LANGS,
   messages,
   cookieLang: COOKIE_LANG,
@@ -83,7 +84,7 @@ const boot = {
           <span data-i18n="device">Device</span>
           <select id="device" aria-label="Device">
             <option value="" data-i18n-option="allDevices">All devices</option>
-            {DEVICES.map((d) => (
+            {devices.map((d) => (
               <option value={d.id}>
                 {d.name} ({d.country})
               </option>
@@ -127,7 +128,7 @@ const boot = {
                 </p>
               ) : (
                 day.items.map((item) => {
-                  const device = getDevice(item.deviceId);
+                  const device = devices.find((d) => d.id === item.deviceId);
                   return (
                     <article
                       class="card"
@@ -181,14 +182,31 @@ const boot = {
 
         <div class="modal-step" id="step-device" hidden>
           <p class="modal-label" data-i18n="modalDevice">Choose your device</p>
-          <div class="choice-grid" id="device-choices">
-            {DEVICES.map((d) => (
-              <button type="button" class="choice" data-device={d.id}>
-                <strong>{d.name}</strong>
-                <span>{d.country}</span>
-              </button>
-            ))}
+          <div class="choice-grid" id="device-choices"></div>
+
+          <button type="button" class="linkish register-toggle" id="show-register" data-i18n="modalRegister">
+            Not in the list? Register a new device
+          </button>
+
+          <div class="register-form" id="register-form" hidden>
+            <label class="field">
+              <span data-i18n="modalRegisterName">Device name</span>
+              <input id="reg-name" type="text" autocomplete="off" maxlength="40" />
+            </label>
+            <label class="field">
+              <span data-i18n="modalRegisterCountry">Country</span>
+              <select id="reg-country">
+                {COUNTRY_CODES.map((c) => (
+                  <option value={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            <p class="register-error" id="reg-error" hidden></p>
+            <button type="button" class="primary" id="reg-submit" data-i18n="modalRegisterSubmit">
+              Register & continue
+            </button>
           </div>
+
           <button type="button" class="primary" id="device-done" disabled data-i18n="modalContinue">
             Continue
           </button>
@@ -198,7 +216,7 @@ const boot = {
 
     <script define:vars={{ boot }}>
       const cfg = boot;
-      const devices = cfg.devices;
+      let devices = [...cfg.devices];
       const tAll = cfg.messages;
 
       function fill(template, vars) {
@@ -236,9 +254,77 @@ const boot = {
       const countrySelect = document.getElementById("country");
       const langSelect = document.getElementById("lang");
       const hint = document.getElementById("range-hint");
+      const deviceChoices = document.getElementById("device-choices");
+      const showRegister = document.getElementById("show-register");
+      const registerForm = document.getElementById("register-form");
+      const regName = document.getElementById("reg-name");
+      const regCountry = document.getElementById("reg-country");
+      const regSubmit = document.getElementById("reg-submit");
+      const regError = document.getElementById("reg-error");
 
       function t() {
         return tAll[lang || pendingLang || "en"];
+      }
+
+      function syncDeviceSelect() {
+        const allLabel = t().allDevices;
+        const current = deviceSelect.value;
+        deviceSelect.innerHTML = "";
+        const allOpt = document.createElement("option");
+        allOpt.value = "";
+        allOpt.setAttribute("data-i18n-option", "allDevices");
+        allOpt.textContent = allLabel;
+        deviceSelect.appendChild(allOpt);
+        for (const d of devices) {
+          const opt = document.createElement("option");
+          opt.value = d.id;
+          opt.textContent = `${d.name} (${d.country})`;
+          deviceSelect.appendChild(opt);
+        }
+        if ([...deviceSelect.options].some((o) => o.value === current)) {
+          deviceSelect.value = current;
+        } else if (deviceId) {
+          deviceSelect.value = deviceId;
+        }
+
+        const countries = [...new Set(devices.map((d) => d.country))];
+        const cCur = countrySelect.value;
+        countrySelect.innerHTML = "";
+        const cAll = document.createElement("option");
+        cAll.value = "";
+        cAll.setAttribute("data-i18n-option", "allCountries");
+        cAll.textContent = t().allCountries;
+        countrySelect.appendChild(cAll);
+        for (const c of countries) {
+          const opt = document.createElement("option");
+          opt.value = c;
+          opt.textContent = c;
+          countrySelect.appendChild(opt);
+        }
+        if ([...countrySelect.options].some((o) => o.value === cCur)) {
+          countrySelect.value = cCur;
+        }
+      }
+
+      function renderDeviceChoices() {
+        deviceChoices.innerHTML = "";
+        for (const d of devices) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "choice" + (d.id === pendingDevice ? " selected" : "");
+          btn.dataset.device = d.id;
+          btn.innerHTML = `<strong>${d.name}</strong><span>${d.country}</span>`;
+          btn.addEventListener("click", () => {
+            pendingDevice = d.id;
+            registerForm.hidden = true;
+            document.querySelectorAll("#device-choices .choice").forEach((b) => {
+              b.classList.toggle("selected", b.dataset.device === pendingDevice);
+            });
+            deviceDone.disabled = false;
+          });
+          deviceChoices.appendChild(btn);
+        }
+        deviceDone.disabled = !pendingDevice;
       }
 
       function applyI18n() {
@@ -286,7 +372,6 @@ const boot = {
       }
 
       function applyFilters() {
-        // Prefer the live <select> values (user may have changed them)
         deviceId = deviceSelect.value || "";
         const country = countrySelect.value || "";
         const m = t();
@@ -310,16 +395,25 @@ const boot = {
           const cards = [...section.querySelectorAll(".card")];
           const visible = cards.filter((c) => !c.hidden);
           const empty = section.querySelector("[data-empty]");
-          if (empty) {
-            // Show the dash only when this day has no visible cards
-            empty.hidden = visible.length > 0;
-          }
+          if (empty) empty.hidden = visible.length > 0;
         });
+      }
+
+      function finishWithDevice(id) {
+        deviceId = id;
+        pendingDevice = id;
+        setCookie(cfg.cookieDevice, deviceId);
+        syncDeviceSelect();
+        deviceSelect.value = deviceId;
+        const d = devices.find((x) => x.id === deviceId);
+        if (d) countrySelect.value = d.country;
+        showApp();
       }
 
       function showApp() {
         modal.hidden = true;
         app.hidden = false;
+        syncDeviceSelect();
         applyI18n();
         applyFilters();
       }
@@ -335,15 +429,14 @@ const boot = {
         modal.hidden = false;
         pendingLang = lang || "en";
         pendingDevice = deviceId || "";
+        registerForm.hidden = true;
+        regError.hidden = true;
         stepLang.hidden = false;
         stepDevice.hidden = true;
         langNext.disabled = !pendingLang;
-        deviceDone.disabled = !pendingDevice;
+        renderDeviceChoices();
         document.querySelectorAll("#lang-choices .choice").forEach((b) => {
           b.classList.toggle("selected", b.dataset.lang === pendingLang);
-        });
-        document.querySelectorAll("#device-choices .choice").forEach((b) => {
-          b.classList.toggle("selected", b.dataset.device === pendingDevice);
         });
         applyI18n();
       }
@@ -364,25 +457,54 @@ const boot = {
         setCookie(cfg.cookieLang, lang);
         stepLang.hidden = true;
         stepDevice.hidden = false;
+        renderDeviceChoices();
         applyI18n();
       });
 
-      document.querySelectorAll("#device-choices .choice").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          pendingDevice = btn.dataset.device;
+      showRegister.addEventListener("click", () => {
+        registerForm.hidden = !registerForm.hidden;
+        if (!registerForm.hidden) {
+          pendingDevice = "";
           document.querySelectorAll("#device-choices .choice").forEach((b) => {
-            b.classList.toggle("selected", b === btn);
+            b.classList.remove("selected");
           });
-          deviceDone.disabled = false;
-        });
+          deviceDone.disabled = true;
+          regName.focus();
+        }
+      });
+
+      regSubmit.addEventListener("click", async () => {
+        const name = regName.value.trim();
+        const country = regCountry.value;
+        regError.hidden = true;
+        if (!name) {
+          regError.textContent = t().modalRegisterError;
+          regError.hidden = false;
+          return;
+        }
+        regSubmit.disabled = true;
+        try {
+          const res = await fetch("/api/devices", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name, country }),
+          });
+          const body = await res.json();
+          if (!res.ok) throw new Error(body.error || "failed");
+          devices.push(body.device);
+          devices.sort((a, b) => a.name.localeCompare(b.name));
+          finishWithDevice(body.device.id);
+        } catch (err) {
+          regError.textContent = t().modalRegisterError;
+          regError.hidden = false;
+        } finally {
+          regSubmit.disabled = false;
+        }
       });
 
       deviceDone.addEventListener("click", () => {
-        deviceId = pendingDevice;
-        setCookie(cfg.cookieDevice, deviceId);
-        const d = devices.find((x) => x.id === deviceId);
-        if (d) countrySelect.value = d.country;
-        showApp();
+        if (!pendingDevice) return;
+        finishWithDevice(pendingDevice);
       });
 
       deviceSelect.addEventListener("change", () => {
@@ -406,7 +528,6 @@ const boot = {
         openSetup(true);
       });
 
-      // First visit: modal. Returning: cookies → app.
       if (!getCookie(cfg.cookieLang) || !getCookie(cfg.cookieDevice)) {
         openSetup(false);
       } else {

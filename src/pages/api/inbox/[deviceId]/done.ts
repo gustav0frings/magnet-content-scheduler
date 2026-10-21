@@ -7,7 +7,7 @@ export const prerender = false;
 
 export const POST: APIRoute = async ({ params, request }) => {
   const deviceId = params.deviceId;
-  if (!deviceId || !getDevice(deviceId)) {
+  if (!deviceId || !(await getDevice(deviceId))) {
     return json({ error: "Unknown device" }, 404);
   }
 

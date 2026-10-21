@@ -1,7 +1,8 @@
 import { UTApi, UTFile } from "uploadthing/server";
 
-/** Fixed customId for the schedule JSON living on UploadThing (not Vercel). */
+/** Fixed customIds for JSON blobs on UploadThing (not Vercel). */
 export const SCHEDULE_CUSTOM_ID = "magnet-content-schedule";
+export const DEVICES_CUSTOM_ID = "magnet-content-devices";
 
 export function getUtApi(): UTApi {
   const token = process.env.UPLOADTHING_TOKEN;
@@ -29,30 +30,55 @@ export function getAppId(token = process.env.UPLOADTHING_TOKEN): string {
   }
 }
 
-export function schedulePublicUrl(token = process.env.UPLOADTHING_TOKEN): string {
-  return `https://${getAppId(token)}.ufs.sh/f/${SCHEDULE_CUSTOM_ID}`;
+export function publicFileUrl(
+  customId: string,
+  token = process.env.UPLOADTHING_TOKEN,
+): string {
+  return `https://${getAppId(token)}.ufs.sh/f/${customId}`;
 }
 
-export async function uploadScheduleJson(
-  utapi: UTApi,
-  items: unknown,
-): Promise<{ key: string; url: string }> {
-  // Replace previous schedule file (same customId).
-  await utapi.deleteFiles(SCHEDULE_CUSTOM_ID, { keyType: "customId" }).catch(
-    () => undefined,
-  );
+export function schedulePublicUrl(token = process.env.UPLOADTHING_TOKEN): string {
+  return publicFileUrl(SCHEDULE_CUSTOM_ID, token);
+}
 
-  const body = JSON.stringify(items, null, 2);
-  const file = new UTFile([body], "schedule.json", {
+export async function readJsonFile<T>(customId: string): Promise<T | null> {
+  const url = publicFileUrl(customId);
+  const res = await fetch(url, { cache: "no-store" });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`Failed to read ${customId} (${res.status}) from ${url}`);
+  }
+  const text = await res.text();
+  if (!text.trim()) return null;
+  return JSON.parse(text) as T;
+}
+
+export async function uploadJsonFile(
+  customId: string,
+  filename: string,
+  data: unknown,
+): Promise<{ key: string; url: string }> {
+  const utapi = getUtApi();
+  await utapi.deleteFiles(customId, { keyType: "customId" }).catch(() => undefined);
+
+  const body = JSON.stringify(data, null, 2);
+  const file = new UTFile([body], filename, {
     type: "application/json",
-    customId: SCHEDULE_CUSTOM_ID,
+    customId,
   });
   const result = await utapi.uploadFiles(file);
   if (result.error || !result.data) {
-    throw new Error(`Schedule upload failed: ${JSON.stringify(result.error)}`);
+    throw new Error(`Upload ${customId} failed: ${JSON.stringify(result.error)}`);
   }
   return {
     key: result.data.key,
     url: result.data.ufsUrl ?? result.data.url,
   };
+}
+
+export async function uploadScheduleJson(
+  _utapi: UTApi,
+  items: unknown,
+): Promise<{ key: string; url: string }> {
+  return uploadJsonFile(SCHEDULE_CUSTOM_ID, "schedule.json", items);
 }

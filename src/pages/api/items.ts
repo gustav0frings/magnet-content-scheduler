@@ -35,7 +35,7 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ error: "Invalid JSON" }, 400);
   }
 
-  const device = body.deviceId ? getDevice(body.deviceId) : undefined;
+  const device = body.deviceId ? await getDevice(body.deviceId) : undefined;
   if (!device) return json({ error: "Unknown deviceId" }, 400);
   if (!body.title?.trim()) return json({ error: "title required" }, 400);
   if (!body.url?.trim()) return json({ error: "url required" }, 400);
