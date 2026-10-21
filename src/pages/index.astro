@@ -478,17 +478,23 @@ const boot = {
         deviceId = id;
         pendingDevice = id;
         setCookie(cfg.cookieDevice, deviceId);
-        syncDeviceSelect();
-        deviceSelect.value = deviceId;
-        const d = devices.find((x) => x.id === deviceId);
-        if (d) countrySelect.value = d.country;
-        showApp();
+        // After onboarding, land on that device; later visits use all-devices.
+        showApp({ filterDevice: id });
       }
 
-      function showApp() {
+      function showApp(opts = {}) {
         modal.hidden = true;
         app.hidden = false;
         syncDeviceSelect();
+        if (opts.filterDevice) {
+          deviceSelect.value = opts.filterDevice;
+          const d = devices.find((x) => x.id === opts.filterDevice);
+          countrySelect.value = d ? d.country : "";
+        } else {
+          // Cookie only skips the modal — calendar starts on all devices/countries.
+          deviceSelect.value = "";
+          countrySelect.value = "";
+        }
         applyI18n();
         applyFilters();
       }
@@ -632,8 +638,6 @@ const boot = {
       } else {
         lang = getCookie(cfg.cookieLang) === "fr" ? "fr" : "en";
         deviceId = getCookie(cfg.cookieDevice);
-        const d = devices.find((x) => x.id === deviceId);
-        if (d) countrySelect.value = d.country;
         showApp();
       }
     </script>
