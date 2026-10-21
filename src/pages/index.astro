@@ -272,8 +272,10 @@ const boot = {
       }
 
       function setCookie(name, value, days = 400) {
+        if (!value) return; // never wipe lang/device with an empty value
         const maxAge = days * 24 * 60 * 60;
-        document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+        const secure = location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
       }
 
       function localeFor(lang) {
@@ -589,7 +591,9 @@ const boot = {
 
       deviceSelect.addEventListener("change", () => {
         deviceId = deviceSelect.value;
-        setCookie(cfg.cookieDevice, deviceId);
+        // Keep the last real device in the cookie — "all devices" is a view
+        // filter only, otherwise the next visit thinks setup is missing.
+        if (deviceId) setCookie(cfg.cookieDevice, deviceId);
         const d = devices.find((x) => x.id === deviceId);
         // Sync country with the picked device; clear it for "all devices"
         // so FR + US (etc.) all show up.
