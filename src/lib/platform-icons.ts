@@ -1,9 +1,9 @@
 import type { AccountPlatform } from "./devices";
 
-/** User-provided svgrepo outline icons (PNG); colored via CSS mask. */
+/** Outline icons (SVG); colored via CSS mask + currentColor. */
 export const PLATFORM_ICON: Record<AccountPlatform, string> = {
-  instagram: "/icons/instagram.png",
-  tiktok: "/icons/tiktok.png",
+  instagram: "/icons/instagram.svg",
+  tiktok: "/icons/tiktok.svg",
 };
 
 /** Inline markup for calendar / table (dark UI, currentColor via CSS mask). */

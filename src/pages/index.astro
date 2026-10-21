@@ -203,8 +203,8 @@ const boot = {
       const tAll = cfg.messages;
       const flags = cfg.flags || {};
       const platformIcons = cfg.platformIcons || {
-        instagram: "/icons/instagram.png",
-        tiktok: "/icons/tiktok.png",
+        instagram: "/icons/instagram.svg",
+        tiktok: "/icons/tiktok.svg",
       };
       let weekOffset = 0; // days from today (multiples of 7)
 
@@ -390,9 +390,10 @@ const boot = {
             flagEl.className = "day-gap-flag";
             flagEl.textContent = flag(d.country);
             chip.appendChild(flagEl);
-            const icon = document.createElement("span");
-            icon.className = `platform-icon platform-icon--${d.platform === "tiktok" ? "tiktok" : "instagram"}`;
+            const icon = platformIconEl(d.platform);
             icon.setAttribute("aria-hidden", "true");
+            icon.removeAttribute("role");
+            icon.removeAttribute("aria-label");
             chip.appendChild(icon);
             const name = document.createElement("span");
             name.className = "day-gap-name";
