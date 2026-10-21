@@ -219,6 +219,56 @@ select {
   min-width: 0;
 }
 
+.platform-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  vertical-align: -0.15em;
+  background-color: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+
+.platform-icon.lg {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.account-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.account-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  margin-top: 0.1rem;
+}
+
+.platform-select-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.platform-select-wrap .platform-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.platform-select-wrap select {
+  flex: 1;
+  min-width: 0;
+}
+
 .card-accounts {
   margin-top: 0.15rem;
 }

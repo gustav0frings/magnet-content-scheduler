@@ -10,6 +10,7 @@ import {
   listDevices,
 } from "../lib/devices";
 import { COOKIE_DEVICE, COOKIE_LANG, messages, UI_LANGS } from "../lib/i18n";
+import { PLATFORM_ICON } from "../lib/platform-icons";
 import { listItems } from "../lib/schedule";
 
 const devices = await listDevices();
@@ -21,6 +22,7 @@ const boot = {
   items,
   countries: COUNTRY_CODES,
   flags: COUNTRY_FLAGS,
+  platformIcons: PLATFORM_ICON,
   langs: UI_LANGS,
   messages,
   cookieLang: COOKIE_LANG,
@@ -68,7 +70,6 @@ const boot = {
             {devices.map((d) => (
               <option value={d.id}>
                 {countryFlag(d.country)} {d.name}
-                {d.platform === "instagram" ? " · IG" : " · TT"}
               </option>
             ))}
           </select>
@@ -190,10 +191,34 @@ const boot = {
       const items = [...(cfg.items || [])];
       const tAll = cfg.messages;
       const flags = cfg.flags || {};
+      const platformIcons = cfg.platformIcons || {
+        instagram: "/icons/instagram.png",
+        tiktok: "/icons/tiktok.png",
+      };
       let weekOffset = 0; // days from today (multiples of 7)
 
       function flag(country) {
         return flags[country] || country;
+      }
+
+      function platformIconEl(platform) {
+        const key = platform === "instagram" ? "instagram" : "tiktok";
+        const el = document.createElement("span");
+        el.className = "platform-icon";
+        el.dataset.platform = key;
+        el.setAttribute("role", "img");
+        el.setAttribute("aria-label", key === "instagram" ? "Instagram" : "TikTok");
+        el.style.setProperty("--icon", `url('${platformIcons[key]}')`);
+        return el;
+      }
+
+      function accountLabel(device) {
+        if (!device) return "";
+        const wrap = document.createElement("span");
+        wrap.className = "account-with-icon";
+        wrap.appendChild(platformIconEl(device.platform));
+        wrap.appendChild(document.createTextNode(device.name));
+        return wrap;
       }
 
       function dayKey(date) {
@@ -422,11 +447,16 @@ const boot = {
               for (const d of devices) {
                 const opt = document.createElement("option");
                 opt.value = d.id;
-                const plat = d.platform === "instagram" ? "IG" : "TT";
-                opt.textContent = `${flag(d.country)} ${d.name} · ${plat}`;
+                opt.textContent = `${flag(d.country)} ${d.name}`;
                 opt.selected = accountIds.includes(d.id);
                 accountsSelect.appendChild(opt);
               }
+              const chips = document.createElement("div");
+              chips.className = "account-chips";
+              for (const d of linked) {
+                chips.appendChild(accountLabel(d));
+              }
+              body.appendChild(chips);
               accountsSelect.addEventListener("change", async () => {
                 const selected = [...accountsSelect.selectedOptions].map(
                   (o) => o.value,
@@ -603,8 +633,7 @@ const boot = {
         for (const d of devices) {
           const opt = document.createElement("option");
           opt.value = d.id;
-          const plat = d.platform === "instagram" ? "IG" : "TT";
-          opt.textContent = `${flag(d.country)} ${d.name} · ${plat}`;
+          opt.textContent = `${flag(d.country)} ${d.name}`;
           deviceSelect.appendChild(opt);
         }
         if ([...deviceSelect.options].some((o) => o.value === current)) {
@@ -642,8 +671,7 @@ const boot = {
         for (const d of devices) {
           const opt = document.createElement("option");
           opt.value = d.id;
-          const plat = d.platform === "instagram" ? "IG" : "TT";
-          opt.textContent = `${flag(d.country)} ${d.name} · ${plat}`;
+          opt.textContent = `${flag(d.country)} ${d.name}`;
           modalDevice.appendChild(opt);
         }
         if (pendingDevice && [...modalDevice.options].some((o) => o.value === pendingDevice)) {
