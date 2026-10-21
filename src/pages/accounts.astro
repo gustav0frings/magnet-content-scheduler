@@ -37,7 +37,7 @@ const boot = {
     />
   </head>
   <body>
-    <div class="wrap" id="app">
+    <div class="wrap accounts-page" id="app">
       <header>
         <div class="header-row">
           <div>
@@ -108,7 +108,22 @@ const boot = {
       <p class="empty accounts-empty" id="accounts-empty" data-i18n="accountEmpty" hidden>
         No accounts yet.
       </p>
-      <div id="accounts-list" class="accounts-list"></div>
+      <div class="accounts-table-wrap" id="accounts-table-wrap" hidden>
+        <table class="accounts-table">
+          <thead>
+            <tr>
+              <th data-i18n="accountName">Account</th>
+              <th data-i18n="accountPlatform">Platform</th>
+              <th data-i18n="accountDevice">Device</th>
+              <th data-i18n="accountWarmup">Warm-up</th>
+              <th data-i18n="accountWarmupStart">Start date</th>
+              <th></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="accounts-list"></tbody>
+        </table>
+      </div>
     </div>
 
     <script define:vars={{ boot }}>
@@ -174,6 +189,7 @@ const boot = {
       }
 
       const listEl = document.getElementById("accounts-list");
+      const tableWrap = document.getElementById("accounts-table-wrap");
       const emptyEl = document.getElementById("accounts-empty");
       const langSelect = document.getElementById("lang");
       const addForm = document.getElementById("add-form");
@@ -216,39 +232,21 @@ const boot = {
         const m = t();
         listEl.innerHTML = "";
         emptyEl.hidden = accounts.length > 0;
+        tableWrap.hidden = accounts.length === 0;
 
         for (const account of accounts) {
           const days = dayCount(account.warmupStartedAt);
-          const row = document.createElement("article");
-          row.className = "account-card";
-          row.dataset.id = account.id;
+          const tr = document.createElement("tr");
+          tr.dataset.id = account.id;
 
-          const top = document.createElement("div");
-          top.className = "account-card-top";
-          const titleWrap = document.createElement("div");
-          titleWrap.className = "account-title-wrap";
-          const title = document.createElement("strong");
-          title.className = "account-name";
-          title.textContent = account.name;
-          const platformBadge = document.createElement("span");
-          platformBadge.className = `account-platform ${account.platform || "tiktok"}`;
-          platformBadge.textContent = platformLabel(account.platform || "tiktok", m);
-          titleWrap.append(title, platformBadge);
-          top.appendChild(titleWrap);
+          const nameTd = document.createElement("td");
+          nameTd.className = "account-name";
+          nameTd.textContent = account.name;
+          tr.appendChild(nameTd);
 
-          const daysEl = document.createElement("span");
-          daysEl.className = days != null ? "account-days is-on" : "account-days";
-          daysEl.textContent = days != null ? fill(m.accountDays, { n: String(days) }) : "—";
-          top.appendChild(daysEl);
-          row.appendChild(top);
-
-          const platformField = document.createElement("label");
-          platformField.className = "field";
-          const platformLabelEl = document.createElement("span");
-          platformLabelEl.setAttribute("data-i18n", "accountPlatform");
-          platformLabelEl.textContent = m.accountPlatform;
-          platformField.appendChild(platformLabelEl);
+          const platformTd = document.createElement("td");
           const platformSelect = document.createElement("select");
+          platformSelect.className = "table-select";
           for (const p of platforms) {
             const opt = document.createElement("option");
             opt.value = p;
@@ -263,8 +261,6 @@ const boot = {
                 platform: platformSelect.value,
               });
               account.platform = updated.platform;
-              platformBadge.className = `account-platform ${account.platform}`;
-              platformBadge.textContent = platformLabel(account.platform, m);
             } catch {
               platformSelect.value = account.platform || "tiktok";
               alert(m.accountSaveError);
@@ -272,16 +268,12 @@ const boot = {
               platformSelect.disabled = false;
             }
           });
-          platformField.appendChild(platformSelect);
-          row.appendChild(platformField);
+          platformTd.appendChild(platformSelect);
+          tr.appendChild(platformTd);
 
-          const deviceField = document.createElement("label");
-          deviceField.className = "field";
-          const deviceLabelEl = document.createElement("span");
-          deviceLabelEl.setAttribute("data-i18n", "accountDevice");
-          deviceLabelEl.textContent = m.accountDevice;
-          deviceField.appendChild(deviceLabelEl);
+          const deviceTd = document.createElement("td");
           const deviceSelect = document.createElement("select");
+          deviceSelect.className = "table-select";
           const none = document.createElement("option");
           none.value = "";
           none.textContent = m.accountNoDevice;
@@ -306,33 +298,31 @@ const boot = {
               deviceSelect.disabled = false;
             }
           });
-          deviceField.appendChild(deviceSelect);
-          row.appendChild(deviceField);
+          deviceTd.appendChild(deviceSelect);
+          tr.appendChild(deviceTd);
 
-          const warmupBlock = document.createElement("div");
-          warmupBlock.className = "account-warmup";
-          const checkLabel = document.createElement("label");
-          checkLabel.className = "check-row";
+          const warmupTd = document.createElement("td");
+          warmupTd.className = "account-warmup-cell";
           const check = document.createElement("input");
           check.type = "checkbox";
           check.checked = Boolean(account.warmupStartedAt);
-          const checkText = document.createElement("span");
-          checkText.textContent = check.checked ? m.accountWarmupOn : m.accountWarmupOff;
-          checkLabel.append(check, checkText);
-          warmupBlock.appendChild(checkLabel);
+          check.title = check.checked ? m.accountWarmupOn : m.accountWarmupOff;
+          warmupTd.appendChild(check);
+          tr.appendChild(warmupTd);
 
-          const dateField = document.createElement("label");
-          dateField.className = "field";
-          dateField.hidden = !check.checked;
-          const dateSpan = document.createElement("span");
-          dateSpan.setAttribute("data-i18n", "accountWarmupStart");
-          dateSpan.textContent = m.accountWarmupStart;
-          dateField.appendChild(dateSpan);
+          const dateTd = document.createElement("td");
           const dateInput = document.createElement("input");
           dateInput.type = "date";
-          dateInput.value = account.warmupStartedAt || todayKey();
-          dateField.appendChild(dateInput);
-          warmupBlock.appendChild(dateField);
+          dateInput.className = "table-date";
+          dateInput.value = account.warmupStartedAt || "";
+          dateInput.disabled = !account.warmupStartedAt;
+          dateTd.appendChild(dateInput);
+          tr.appendChild(dateTd);
+
+          const daysTd = document.createElement("td");
+          daysTd.className = days != null ? "account-days is-on" : "account-days";
+          daysTd.textContent = days != null ? fill(m.accountDays, { n: String(days) }) : "—";
+          tr.appendChild(daysTd);
 
           async function saveWarmup(startedAt) {
             check.disabled = true;
@@ -343,26 +333,26 @@ const boot = {
               });
               account.warmupStartedAt = updated.warmupStartedAt;
               const n = dayCount(account.warmupStartedAt);
-              daysEl.className = n != null ? "account-days is-on" : "account-days";
-              daysEl.textContent = n != null ? fill(m.accountDays, { n: String(n) }) : "—";
-              checkText.textContent = account.warmupStartedAt
-                ? m.accountWarmupOn
-                : m.accountWarmupOff;
-              dateField.hidden = !account.warmupStartedAt;
+              daysTd.className = n != null ? "account-days is-on" : "account-days";
+              daysTd.textContent = n != null ? fill(m.accountDays, { n: String(n) }) : "—";
+              check.checked = Boolean(account.warmupStartedAt);
+              check.title = check.checked ? m.accountWarmupOn : m.accountWarmupOff;
+              dateInput.value = account.warmupStartedAt || "";
+              dateInput.disabled = !account.warmupStartedAt;
             } catch {
               check.checked = Boolean(account.warmupStartedAt);
-              dateInput.value = account.warmupStartedAt || todayKey();
-              dateField.hidden = !account.warmupStartedAt;
+              dateInput.value = account.warmupStartedAt || "";
+              dateInput.disabled = !account.warmupStartedAt;
               alert(m.accountSaveError);
             } finally {
               check.disabled = false;
-              dateInput.disabled = false;
+              if (account.warmupStartedAt) dateInput.disabled = false;
             }
           }
 
           check.addEventListener("change", () => {
             if (check.checked) {
-              dateField.hidden = false;
+              dateInput.disabled = false;
               if (!dateInput.value) dateInput.value = todayKey();
               saveWarmup(dateInput.value);
             } else {
@@ -374,8 +364,8 @@ const boot = {
             saveWarmup(dateInput.value || todayKey());
           });
 
-          row.appendChild(warmupBlock);
-
+          const delTd = document.createElement("td");
+          delTd.className = "account-actions";
           const del = document.createElement("button");
           del.type = "button";
           del.className = "linkish account-delete";
@@ -398,9 +388,10 @@ const boot = {
               del.disabled = false;
             }
           });
-          row.appendChild(del);
+          delTd.appendChild(del);
+          tr.appendChild(delTd);
 
-          listEl.appendChild(row);
+          listEl.appendChild(tr);
         }
       }
 
