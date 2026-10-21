@@ -1,6 +1,7 @@
 import type { ScheduleItem } from "./types";
 import {
   SCHEDULE_CUSTOM_ID,
+  getUtApi,
   readJsonFile,
   uploadJsonFile,
 } from "./uploadthing";
@@ -80,4 +81,38 @@ export function inDefaultWindow(
     const t = new Date(i.publishAt).getTime();
     return t >= start.getTime() && t < end.getTime();
   });
+}
+
+/**
+ * Drop schedule rows whose publishAt is older than `days` days,
+ * and delete their video files from UploadThing.
+ */
+export async function clearOlderThan(
+  days = 7,
+  now = new Date(),
+): Promise<{ removed: ScheduleItem[]; kept: number }> {
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffMs = cutoff.getTime();
+
+  const items = await listItems();
+  const stale = items.filter(
+    (i) => new Date(i.publishAt).getTime() < cutoffMs,
+  );
+  const keep = items.filter(
+    (i) => new Date(i.publishAt).getTime() >= cutoffMs,
+  );
+
+  if (stale.length === 0) {
+    return { removed: [], kept: keep.length };
+  }
+
+  const keys = [...new Set(stale.map((i) => i.fileKey).filter(Boolean))];
+  if (keys.length > 0) {
+    const utapi = getUtApi();
+    await utapi.deleteFiles(keys);
+  }
+
+  await saveItems(keep);
+  return { removed: stale, kept: keep.length };
 }
