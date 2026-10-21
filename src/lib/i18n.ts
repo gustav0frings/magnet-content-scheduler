@@ -63,6 +63,7 @@ export const messages = {
     accountDelete: "Delete",
     accountEmpty: "No accounts yet.",
     accountSaveError: "Could not save",
+    accountsOnVideo: "Accounts",
   },
   fr: {
     title: "Content Scheduler",
@@ -118,5 +119,6 @@ export const messages = {
     accountDelete: "Supprimer",
     accountEmpty: "Aucun compte pour l’instant.",
     accountSaveError: "Enregistrement impossible",
+    accountsOnVideo: "Comptes",
   },
 } as const;

@@ -2,7 +2,17 @@ import type { CountryCode } from "./devices";
 
 export type ScheduleItem = {
   id: string;
+  /**
+   * Accounts this video is scheduled for (Instagram + TikTok, etc.).
+   * Always normalized on read; at least one id.
+   */
+  deviceIds: string[];
+  /**
+   * Primary account id (= `deviceIds[0]`). Kept for inbox / older clients.
+   * Prefer `deviceIds`.
+   */
   deviceId: string;
+  /** Country of the primary account (badge / legacy filter). */
   country: CountryCode;
   title: string;
   /** Public UploadThing URL (`ufsUrl`) */

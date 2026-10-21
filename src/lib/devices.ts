@@ -148,22 +148,23 @@ export async function registerDevice(input: {
   platform: string;
   warmupStartedAt?: string | null;
 }): Promise<Device> {
-  const name = normalizeDeviceName(input.name);
-  if (!name) throw new Error("name required");
+  const displayName = input.name.trim().replace(/\s+/g, " ").slice(0, 60);
+  const slug = normalizeDeviceName(displayName);
+  if (!slug) throw new Error("name required");
   if (!COUNTRY_CODES.includes(input.country)) {
     throw new Error("invalid country");
   }
   const platform = normalizePlatform(input.platform);
 
   const devices = await listDevices();
-  let id = slugifyDeviceId(name, input.country);
+  let id = slugifyDeviceId(slug, input.country);
   if (devices.some((d) => d.id === id)) {
     id = `${id}-${Math.random().toString(36).slice(2, 6)}`;
   }
 
   const device: Device = {
     id,
-    name,
+    name: displayName,
     country: input.country,
     platform,
     warmupStartedAt: normalizeWarmupDate(input.warmupStartedAt),
@@ -187,7 +188,7 @@ export async function updateDevice(
   if (!device) return null;
 
   if (patch.name !== undefined) {
-    const name = normalizeDeviceName(patch.name);
+    const name = patch.name.trim().replace(/\s+/g, " ").slice(0, 60);
     if (!name) throw new Error("name required");
     device.name = name;
   }

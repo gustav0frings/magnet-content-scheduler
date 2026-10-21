@@ -26,14 +26,16 @@ animations/  →  CLI (AI)  →  UploadThing (fichier)
 
 ## Comptes
 
-Un seul objet : le **compte** (UI). Fichier `magnet-devices.json` ; le schedule garde `deviceId`. Création : nom, `platform` (`instagram` | `tiktok`), pays, optionnel `warmupStartedAt`. Cookie pour le compte choisi. `/accounts` = la même liste.
+Un seul objet : le **compte** (UI). Fichier `magnet-devices.json`. Création : nom, `platform` (`instagram` | `tiktok`), pays, optionnel `warmupStartedAt`. Cookie pour le compte choisi. `/accounts` = la même liste.
+
+Une vidéo → `deviceIds[]` (souvent IG + TT). CLI `--to a,b`.
 
 ### Routing langue → compte
 
-- **EN** → compte `…-us` (country US)
-- **FR** → compte `…-fr` (country FR)
+- **EN** → compte US
+- **FR** → compte FR
 
-Exemple : `slim-iphone-1-fr` vs `slim-iphone-1-us`.
+Exemples : `yanndtingcoach-fr`, `antoine-dating-us`, `corentin-nope-fr`, `kylliandatingexpert-fr`.
 
 ## Calendrier UI
 

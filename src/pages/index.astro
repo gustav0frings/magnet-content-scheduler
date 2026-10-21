@@ -340,17 +340,33 @@ const boot = {
             const grid = document.createElement("div");
             grid.className = "day-grid";
             for (const item of dayItems) {
-              const device = devices.find((x) => x.id === item.deviceId);
+              const accountIds = (
+                item.deviceIds?.length ? item.deviceIds : [item.deviceId]
+              ).filter(Boolean);
+              const linked = accountIds
+                .map((id) => devices.find((x) => x.id === id))
+                .filter(Boolean);
+              const countries = [
+                ...new Set(
+                  [
+                    ...linked.map((d) => d.country),
+                    item.country,
+                  ].filter(Boolean),
+                ),
+              ];
               const downloadName = `${item.title}.mp4`;
               const downloadHref = `/api/download?url=${encodeURIComponent(item.url)}&name=${encodeURIComponent(downloadName)}`;
 
               const published = Boolean(item.publishedAt);
               const card = document.createElement("article");
               card.className = published ? "card is-published" : "card";
-              card.dataset.device = item.deviceId;
-              card.dataset.country = item.country;
+              card.dataset.device = accountIds[0] || "";
+              card.dataset.devices = accountIds.join(",");
+              card.dataset.country = countries[0] || item.country || "";
+              card.dataset.countries = countries.join(",");
               card.dataset.publish = item.publishAt;
               card.dataset.published = published ? "1" : "0";
+              card.dataset.id = item.id;
 
               const thumb = document.createElement("a");
               thumb.className = "thumb";
@@ -378,25 +394,13 @@ const boot = {
               const time = document.createElement("span");
               time.setAttribute("data-time", "");
               meta.appendChild(time);
-              const badge = document.createElement("span");
-              badge.className = `badge ${item.country}`;
-              badge.title = item.country;
-              badge.textContent = flag(item.country);
-              meta.appendChild(badge);
-              const deviceName = document.createElement("span");
-              deviceName.className = "device-name";
-              const plat =
-                device?.platform === "instagram"
-                  ? "IG"
-                  : device?.platform === "tiktok"
-                    ? "TT"
-                    : "";
-              deviceName.textContent = device
-                ? plat
-                  ? `${device.name} · ${plat}`
-                  : device.name
-                : item.deviceId;
-              meta.appendChild(deviceName);
+              for (const c of countries) {
+                const badge = document.createElement("span");
+                badge.className = `badge ${c}`;
+                badge.title = c;
+                badge.textContent = flag(c);
+                meta.appendChild(badge);
+              }
               if (item.savedAt) {
                 const saved = document.createElement("span");
                 saved.setAttribute("data-i18n", "saved");
@@ -404,6 +408,64 @@ const boot = {
                 meta.appendChild(saved);
               }
               body.appendChild(meta);
+
+              const accountsField = document.createElement("label");
+              accountsField.className = "field card-accounts";
+              const accountsLabel = document.createElement("span");
+              accountsLabel.setAttribute("data-i18n", "accountsOnVideo");
+              accountsLabel.textContent = m.accountsOnVideo;
+              accountsField.appendChild(accountsLabel);
+              const accountsSelect = document.createElement("select");
+              accountsSelect.className = "account-multi";
+              accountsSelect.multiple = true;
+              accountsSelect.size = Math.min(4, Math.max(2, devices.length));
+              for (const d of devices) {
+                const opt = document.createElement("option");
+                opt.value = d.id;
+                const plat = d.platform === "instagram" ? "IG" : "TT";
+                opt.textContent = `${flag(d.country)} ${d.name} · ${plat}`;
+                opt.selected = accountIds.includes(d.id);
+                accountsSelect.appendChild(opt);
+              }
+              accountsSelect.addEventListener("change", async () => {
+                const selected = [...accountsSelect.selectedOptions].map(
+                  (o) => o.value,
+                );
+                if (selected.length === 0) {
+                  for (const id of accountIds) {
+                    const opt = [...accountsSelect.options].find((o) => o.value === id);
+                    if (opt) opt.selected = true;
+                  }
+                  return;
+                }
+                accountsSelect.disabled = true;
+                try {
+                  const res = await fetch("/api/items/accounts", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ id: item.id, deviceIds: selected }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error || "failed");
+                  item.deviceIds = data.item.deviceIds;
+                  item.deviceId = data.item.deviceId;
+                  item.country = data.item.country;
+                  const idx = items.findIndex((x) => x.id === item.id);
+                  if (idx >= 0) items[idx] = { ...items[idx], ...data.item };
+                  renderCalendar();
+                  applyI18n();
+                  applyFilters();
+                } catch {
+                  for (const opt of accountsSelect.options) {
+                    opt.selected = accountIds.includes(opt.value);
+                  }
+                  alert(m.accountSaveError || "Could not save");
+                } finally {
+                  accountsSelect.disabled = false;
+                }
+              });
+              accountsField.appendChild(accountsSelect);
+              body.appendChild(accountsField);
 
               const publishRow = document.createElement("div");
               publishRow.className = "publish-row";
@@ -658,10 +720,14 @@ const boot = {
             : m.showingAll;
 
         document.querySelectorAll(".card").forEach((card) => {
-          const cardDevice = card.getAttribute("data-device") || "";
-          const cardCountry = card.getAttribute("data-country") || "";
-          const okDevice = !deviceId || cardDevice === deviceId;
-          const okCountry = !country || cardCountry === country;
+          const cardDevices = (card.getAttribute("data-devices") || card.getAttribute("data-device") || "")
+            .split(",")
+            .filter(Boolean);
+          const cardCountries = (card.getAttribute("data-countries") || card.getAttribute("data-country") || "")
+            .split(",")
+            .filter(Boolean);
+          const okDevice = !deviceId || cardDevices.includes(deviceId);
+          const okCountry = !country || cardCountries.includes(country);
           card.hidden = !(okDevice && okCountry);
         });
 

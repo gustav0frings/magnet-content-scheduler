@@ -219,6 +219,23 @@ select {
   min-width: 0;
 }
 
+.card-accounts {
+  margin-top: 0.15rem;
+}
+
+.card-accounts .account-multi {
+  width: 100%;
+  min-width: 0;
+  appearance: auto;
+  background-image: none;
+  padding: 0.25rem 0.35rem;
+  font-size: 0.7rem;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
 .card-body strong {
   font-size: 0.85rem;
   line-height: 1.25;
