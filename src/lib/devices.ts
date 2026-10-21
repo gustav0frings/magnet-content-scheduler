@@ -15,10 +15,7 @@ export type Device = {
 };
 
 /** Seed devices when UploadThing has no devices file yet. */
-export const DEFAULT_DEVICES: Device[] = [
-  { id: "slim-fr", name: "Slim FR", country: "FR" },
-  { id: "slim-us", name: "Slim US", country: "US" },
-];
+export const DEFAULT_DEVICES: Device[] = [];
 
 /** @deprecated use listDevices() — kept for static fallbacks in markup */
 export const DEVICES = DEFAULT_DEVICES;

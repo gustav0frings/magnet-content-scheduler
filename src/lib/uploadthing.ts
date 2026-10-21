@@ -2,7 +2,8 @@ import { UTApi, UTFile } from "uploadthing/server";
 
 /** Fixed customIds for JSON blobs on UploadThing (not Vercel). */
 export const SCHEDULE_CUSTOM_ID = "magnet-content-schedule";
-export const DEVICES_CUSTOM_ID = "magnet-content-devices";
+/** Bumped when UploadThing reserved the previous customId (409 File already exists). */
+export const DEVICES_CUSTOM_ID = "magnet-devices-v2";
 
 export function getUtApi(): UTApi {
   const token = process.env.UPLOADTHING_TOKEN;
