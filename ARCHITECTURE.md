@@ -80,6 +80,23 @@ App **Raccourcis** (carré violet) :
 3. POST `/done`
 4. Automatisation heure fixe, sans demander confirmation
 
+## Env vars (requis pour push)
+
+Fichier : `.env` (voir `.env.example`). Dupliqué aussi dans Magnet : `docs/CONTENT_SCHEDULER.md`.
+
+| Variable | Où | Rôle |
+| --- | --- | --- |
+| `UPLOADTHING_TOKEN` | **CLI local** (obligatoire pour `npm run send`) + **Vercel** | Upload vidéo + lecture/écriture du schedule JSON. Même token que le projet Astro (dashboard UploadThing → API keys). |
+| `INBOX_SECRET` | Optionnel | Protège `POST /api/items` si enregistrement via HTTP au lieu du CLI |
+
+```bash
+# .env
+UPLOADTHING_TOKEN=eyJ…   # required to push
+# INBOX_SECRET=…         # optional
+```
+
+Sans `UPLOADTHING_TOKEN`, `npm run send` échoue. Pas de Blob Vercel, pas de `SCHEDULER_URL`.
+
 ## Stack
 
 - Astro + adapter Vercel (UI only)

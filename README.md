@@ -9,16 +9,31 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md).
 ## Setup
 
 ```bash
-cp .env.example .env   # UPLOADTHING_TOKEN
+cp .env.example .env   # set UPLOADTHING_TOKEN (required to push)
 npm install
 npm run dev
 ```
 
-On Vercel: set `UPLOADTHING_TOKEN` only. Framework Astro, root `/`.
+### Env vars
+
+| Variable | Required | Where |
+| --- | --- | --- |
+| `UPLOADTHING_TOKEN` | **Yes** (CLI push + Vercel) | Same token as Astro — UploadThing dashboard → API keys |
+| `INBOX_SECRET` | No | Only if you call `POST /api/items` over HTTP |
+
+```bash
+# .env
+UPLOADTHING_TOKEN=eyJ…
+# INBOX_SECRET=…   # optional
+```
+
+On Vercel: set `UPLOADTHING_TOKEN`. Framework Astro, root `/`.
 
 Edit phones in `src/lib/devices.ts`.
 
 ## Push a video (no redeploy)
+
+Needs `UPLOADTHING_TOKEN` in `.env`.
 
 ```bash
 npm run send -- --to slim-fr --at "2026-10-21 09:00" --title "tinder reverse" \
