@@ -21,7 +21,7 @@ animations/  →  CLI (AI)  →  UploadThing (fichier)
 | Scripts `animations/` | Claude / Cursor produit le mp4 |
 | CLI `content-scheduler` | L’IA upload le fichier chez UploadThing, puis enregistre le créneau |
 | UploadThing | Stocke la vidéo, URL publique (`ufsUrl`) — même pattern que le projet Astro |
-| Mini-app Vercel (`content-scheduler/`) | Calendrier, filtre device / pays, API inbox |
+| Mini-app Vercel | UI + API qui **lisent** le schedule sur UploadThing (pas de stockage Vercel) |
 | Téléphone | Ouvre le lien public, choisit son device ; raccourci iPhone peut auto-sauver dans Photos |
 
 ## Devices (hardcodés)
@@ -48,18 +48,18 @@ Filtres :
 - device (sélecteur principal)
 - pays (optionnel, dérivé des devices)
 
-## Envoi (AI)
+## Envoi (AI) — sans redeploy, sans Blob Vercel
 
-La vidéo ne passe **pas** par le body d’une fonction Vercel (limite 4,5 Mo). Même approche que Astro (`UTApi.uploadFiles` → `ufsUrl`) :
+La vidéo et le planning vivent sur **UploadThing** (plan free). Vercel n’héberge que le front.
 
 ```bash
-cd content-scheduler
-npm run send -- --to slim-fr --at "2026-10-21 09:00" --title "tinder reverse" ../.claude/skills/montage-green-screen/out/reversed-tinder-7.mp4
+cd /Users/slim/dev/magnet-content-scheduler
+npm run send -- --to slim-fr --at "2026-10-21 09:00" --title "tinder reverse" ./video.mp4
 ```
 
-1. CLI lit le mp4 local (sortie d’un script `animations/`).
-2. `UTApi.uploadFiles` → UploadThing → `ufsUrl` + `key`.
-3. `POST /api/items` (secret `INBOX_SECRET`) enregistre `{ deviceId, country, title, url, fileKey, publishAt }`.
+1. CLI upload le mp4 → UploadThing (`ufsUrl` + `key`).
+2. CLI lit/écrit le JSON de schedule sur UploadThing (`customId`: `magnet-content-schedule`) avec `deviceId`, `country`, `title`, `publishAt`.
+3. La webapp Vercel fetch ce JSON à chaque requête. Aucun redeploy.
 
 ## Inbox téléphone
 
@@ -82,13 +82,5 @@ App **Raccourcis** (carré violet) :
 
 ## Stack
 
-- Astro + adapter Vercel
-- UploadThing (`uploadthing/server`, `UTApi`) — miroir du flux Astro
-- Schedule : fichier local `data/schedule.json` en dev ; Vercel Blob en prod si `BLOB_READ_WRITE_TOKEN` est set
-
-## Ordre d’implémentation
-
-1. Scaffold `content-scheduler/` + devices hardcodés + schedule store
-2. API `items` / `inbox` + CLI `send`
-3. UI calendrier (today + 7j) + sélecteur device
-4. Raccourci iPhone de test
+- Astro + adapter Vercel (UI only)
+- UploadThing : vidéos + `schedule.json` (`UTApi`, même pattern qu’Astro)

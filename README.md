@@ -1,40 +1,34 @@
 # Content Scheduler
 
-Public calendar for Magnet phone drops. Videos are built with Cursor/Claude via Magnet `animations/` scripts; the AI pushes them to UploadThing with the CLI (same `UTApi` pattern as Astro).
+Public calendar for Magnet phone drops. Videos are built in Magnet (`animations/` / montage skills); the AI pushes them here with the CLI.
+
+**Storage:** UploadThing only (videos + a single `schedule.json`). No Vercel Blob, no redeploy when you push a video. Vercel just hosts the UI/API that *reads* UploadThing.
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## Setup
 
 ```bash
-cp .env.example .env   # UPLOADTHING_TOKEN + INBOX_SECRET
+cp .env.example .env   # UPLOADTHING_TOKEN
 npm install
 npm run dev
 ```
 
+On Vercel: set `UPLOADTHING_TOKEN` only. Framework Astro, root `/`.
+
 Edit phones in `src/lib/devices.ts`.
 
-## Deploy (Vercel)
-
-Import **this** repo on Vercel (Framework: Astro). Set env vars:
-
-- `UPLOADTHING_TOKEN`
-- `INBOX_SECRET`
-- optional: `BLOB_READ_WRITE_TOKEN` (durable schedule on serverless)
-
-Root directory = repo root (not a subfolder).
-
-## Push a video
+## Push a video (no redeploy)
 
 ```bash
 npm run send -- --to slim-fr --at "2026-10-21 09:00" --title "tinder reverse" \
   /path/to/video.mp4
 ```
 
-Without `SCHEDULER_URL`, the CLI writes `data/schedule.json` (gitignored). With `SCHEDULER_URL` + `INBOX_SECRET`, it POSTs to the deployed API.
+`--to` picks the device (and its country). `--at` is publish time. That updates the schedule file on UploadThing; the live site picks it up on the next load.
 
 ## Phone
 
-Open the webapp, pick your device (stored in `localStorage`). Calendar = today + 7 days.
+Open the webapp, pick your device (`localStorage`). Calendar = today + 7 days.
 
 Shortcuts inbox: `GET /api/inbox/<deviceId>`.

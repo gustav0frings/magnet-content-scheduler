@@ -1,55 +1,29 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { ScheduleItem } from "./types";
+import {
+  getUtApi,
+  schedulePublicUrl,
+  uploadScheduleJson,
+} from "./uploadthing";
 
-const LOCAL_PATH = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../../data/schedule.json",
-);
-
-const BLOB_PATHNAME = "content-scheduler/schedule.json";
-
-function useBlob(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
-}
-
-async function readLocal(): Promise<ScheduleItem[]> {
-  try {
-    const raw = await readFile(LOCAL_PATH, "utf8");
-    return JSON.parse(raw) as ScheduleItem[];
-  } catch {
-    return [];
+async function readFromUploadThing(): Promise<ScheduleItem[]> {
+  const url = schedulePublicUrl();
+  const res = await fetch(url, { cache: "no-store" });
+  if (res.status === 404) return [];
+  if (!res.ok) {
+    throw new Error(`Failed to read schedule (${res.status}) from ${url}`);
   }
+  const text = await res.text();
+  if (!text.trim()) return [];
+  return JSON.parse(text) as ScheduleItem[];
 }
 
-async function writeLocal(items: ScheduleItem[]): Promise<void> {
-  await mkdir(path.dirname(LOCAL_PATH), { recursive: true });
-  await writeFile(LOCAL_PATH, JSON.stringify(items, null, 2) + "\n", "utf8");
-}
-
-async function readBlob(): Promise<ScheduleItem[]> {
-  const { list } = await import("@vercel/blob");
-  const { blobs } = await list({ prefix: BLOB_PATHNAME });
-  const hit = blobs.find((b) => b.pathname === BLOB_PATHNAME);
-  if (!hit) return [];
-  const res = await fetch(hit.url);
-  if (!res.ok) return [];
-  return (await res.json()) as ScheduleItem[];
-}
-
-async function writeBlob(items: ScheduleItem[]): Promise<void> {
-  const { put } = await import("@vercel/blob");
-  await put(BLOB_PATHNAME, JSON.stringify(items, null, 2), {
-    access: "public",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType: "application/json",
-  });
+async function writeToUploadThing(items: ScheduleItem[]): Promise<void> {
+  const utapi = getUtApi();
+  await uploadScheduleJson(utapi, items);
 }
 
 export async function listItems(): Promise<ScheduleItem[]> {
-  const items = useBlob() ? await readBlob() : await readLocal();
+  const items = await readFromUploadThing();
   return items.sort(
     (a, b) =>
       new Date(a.publishAt).getTime() - new Date(b.publishAt).getTime(),
@@ -57,8 +31,7 @@ export async function listItems(): Promise<ScheduleItem[]> {
 }
 
 export async function saveItems(items: ScheduleItem[]): Promise<void> {
-  if (useBlob()) await writeBlob(items);
-  else await writeLocal(items);
+  await writeToUploadThing(items);
 }
 
 export async function addItem(

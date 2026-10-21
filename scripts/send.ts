@@ -1,12 +1,11 @@
 /**
- * Upload a rendered video to UploadThing (same pattern as Astro's UTApi scripts),
- * then register it on the content scheduler.
+ * Upload a video to UploadThing, then append it to the schedule JSON
+ * (also on UploadThing — no Vercel storage, no redeploy).
  *
  * Usage:
- *   npm run send -- --to slim-fr --at "2026-10-21 09:00" --title "hook" ../path/to/video.mp4
+ *   npm run send -- --to slim-fr --at "2026-10-21 09:00" --title "hook" ./video.mp4
  *
- * Env: UPLOADTHING_TOKEN, INBOX_SECRET
- * Optional: SCHEDULER_URL (remote register). Without it, writes data/schedule.json locally.
+ * Env: UPLOADTHING_TOKEN
  */
 
 import "dotenv/config";
@@ -21,12 +20,12 @@ function usage(): never {
   console.error(`Usage:
   npm run send -- --to <deviceId> --at "<YYYY-MM-DD HH:mm>" [--title "..."] <file.mp4>
 
-Devices: see src/lib/devices.ts`);
+Devices: see src/lib/devices.ts
+Schedule + video both live on UploadThing (free). No Vercel Blob, no redeploy.`);
   process.exit(1);
 }
 
 function parseWhen(raw: string): Date {
-  // Allow "2026-10-21 09:00" local wall time → ISO
   const normalized = raw.includes("T") ? raw : raw.replace(" ", "T");
   const d = new Date(normalized);
   if (Number.isNaN(d.getTime())) {
@@ -69,7 +68,9 @@ async function main() {
   const title = values.title?.trim() || name.replace(/\.[^.]+$/, "");
   const publishAt = parseWhen(values.at);
 
-  console.log(`Uploading ${name} (${(buf.byteLength / 1024 / 1024).toFixed(1)} MB) → UploadThing…`);
+  console.log(
+    `Uploading ${name} (${(buf.byteLength / 1024 / 1024).toFixed(1)} MB) → UploadThing…`,
+  );
 
   const utapi = new UTApi({ token });
   const file = new UTFile([buf], name, { type: "video/mp4" });
@@ -85,45 +86,17 @@ async function main() {
   console.log(`  url: ${url}`);
   console.log(`  key: ${fileKey}`);
 
-  const payload = {
+  console.log("Updating schedule on UploadThing…");
+  const item = await addItem({
     deviceId: device.id,
     country: device.country,
     title,
     url,
     fileKey,
     publishAt: publishAt.toISOString(),
-  };
-
-  const schedulerUrl = process.env.SCHEDULER_URL?.replace(/\/$/, "");
-  const secret = process.env.INBOX_SECRET;
-
-  if (schedulerUrl) {
-    if (!secret) {
-      console.error("INBOX_SECRET required when SCHEDULER_URL is set");
-      process.exit(1);
-    }
-    console.log(`Registering on ${schedulerUrl}…`);
-    const res = await fetch(`${schedulerUrl}/api/items`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-inbox-secret": secret,
-      },
-      body: JSON.stringify(payload),
-    });
-    const body = await res.json();
-    if (!res.ok) {
-      console.error("Register failed:", body);
-      process.exit(1);
-    }
-    console.log("Scheduled:", body.item);
-  } else {
-    console.log("No SCHEDULER_URL — writing local data/schedule.json");
-    const item = await addItem(payload);
-    console.log("Scheduled:", item);
-  }
-
-  console.log(`\nDevice page filter: ? → pick "${device.name}" on the webapp`);
+  });
+  console.log("Scheduled:", item);
+  console.log(`Device: ${device.name} (${device.country})`);
   console.log(`Inbox: /api/inbox/${device.id}`);
 }
 
