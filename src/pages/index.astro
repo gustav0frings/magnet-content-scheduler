@@ -328,12 +328,21 @@ const boot = {
         }
       }
 
-      async function onDownload(event, card, id) {
-        if (card.dataset.published === "1") {
-          event.preventDefault();
-          return;
-        }
-        // Keep href for this click so the file still downloads (iPhone included).
+      function isIosLike() {
+        const ua = navigator.userAgent || "";
+        if (/iPad|iPhone|iPod/i.test(ua)) return true;
+        // iPadOS reports as MacIntel with touch
+        return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+      }
+
+      function canShareVideoFile() {
+        return (
+          typeof navigator.share === "function" &&
+          typeof navigator.canShare === "function"
+        );
+      }
+
+      async function markPublishedAfterDownload(card, id) {
         const m = t();
         card.dataset.published = "1";
         card.classList.add("is-published");
@@ -354,6 +363,67 @@ const boot = {
         } catch {
           paintPublished(card, false);
         }
+      }
+
+      async function shareVideoToPhotos(href, filename) {
+        const res = await fetch(href);
+        if (!res.ok) throw new Error("fetch failed");
+        const blob = await res.blob();
+        const type = blob.type || "video/mp4";
+        const file = new File([blob], filename.endsWith(".mp4") ? filename : `${filename}.mp4`, {
+          type,
+        });
+        if (!navigator.canShare({ files: [file] })) {
+          throw new Error("cannot share file");
+        }
+        await navigator.share({ files: [file], title: filename });
+      }
+
+      async function onDownload(event, card, id) {
+        if (card.dataset.published === "1") {
+          event.preventDefault();
+          return;
+        }
+
+        const dl = card.querySelector("a.download");
+        const href = dl?.dataset.href || dl?.getAttribute("href");
+        const filename = dl?.getAttribute("download") || "video.mp4";
+        const m = t();
+
+        // iPhone/iPad: Web Share → “Enregistrer la vidéo” goes to Photos, not Files.
+        if (isIosLike() && canShareVideoFile() && href) {
+          event.preventDefault();
+          if (dl?.dataset.busy === "1") return;
+          if (dl) {
+            dl.dataset.busy = "1";
+            dl.classList.add("is-busy");
+            dl.textContent = m.downloading;
+          }
+          try {
+            await shareVideoToPhotos(href, filename);
+            await markPublishedAfterDownload(card, id);
+          } catch (err) {
+            if (err?.name === "AbortError") return;
+            // Fallback: open inline so Safari can “Save Video” to Photos.
+            const inline = href.includes("?")
+              ? `${href}&inline=1`
+              : `${href}?inline=1`;
+            window.open(inline, "_blank", "noopener,noreferrer");
+            await markPublishedAfterDownload(card, id);
+          } finally {
+            if (dl) {
+              dl.dataset.busy = "0";
+              dl.classList.remove("is-busy");
+              if (card.dataset.published !== "1") {
+                dl.textContent = m.download;
+              }
+            }
+          }
+          return;
+        }
+
+        // Desktop / Android: native download via href + attachment.
+        await markPublishedAfterDownload(card, id);
       }
 
       function renderCalendar() {

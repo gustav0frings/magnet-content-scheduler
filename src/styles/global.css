@@ -548,6 +548,11 @@ button.publish-toggle:disabled {
   pointer-events: none;
 }
 
+.card a.download.is-busy {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 .empty {
   color: var(--muted);
   padding: 2rem 0;

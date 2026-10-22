@@ -33,6 +33,7 @@ function safeFilename(raw: string): string {
 export const GET: APIRoute = async ({ url }) => {
   const target = url.searchParams.get("url");
   const name = safeFilename(url.searchParams.get("name") || "video");
+  const inline = url.searchParams.get("inline") === "1";
 
   if (!target || !isAllowedVideoUrl(target)) {
     return json({ error: "Invalid url" }, 400);
@@ -43,9 +44,13 @@ export const GET: APIRoute = async ({ url }) => {
     return json({ error: "Upstream failed" }, 502);
   }
 
+  const disposition = inline
+    ? `inline; filename="${name}"; filename*=UTF-8''${encodeURIComponent(name)}`
+    : `attachment; filename="${name}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+
   const headers = new Headers({
     "Content-Type": upstream.headers.get("content-type") || "video/mp4",
-    "Content-Disposition": `attachment; filename="${name}"; filename*=UTF-8''${encodeURIComponent(name)}`,
+    "Content-Disposition": disposition,
     "Cache-Control": "private, max-age=3600",
   });
   const length = upstream.headers.get("content-length");
