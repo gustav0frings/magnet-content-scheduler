@@ -16,6 +16,19 @@ export function countryFlag(country: string): string {
   return COUNTRY_FLAGS[country as CountryCode] ?? country;
 }
 
+/** Public profile URL for an account handle + platform. */
+export function accountProfileUrl(
+  platform: AccountPlatform | string | null | undefined,
+  name: string,
+): string | null {
+  const handle = name.trim().replace(/^@+/, "");
+  if (!handle) return null;
+  if (platform === "instagram") {
+    return `https://www.instagram.com/${encodeURIComponent(handle)}/`;
+  }
+  return `https://www.tiktok.com/@${encodeURIComponent(handle)}`;
+}
+
 /** One posting account (was called "device"). Schedule items still use `deviceId`. */
 export type Device = {
   id: string;

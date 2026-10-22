@@ -266,6 +266,13 @@ select {
   color: var(--muted);
   font-size: 0.72rem;
   line-height: 1.25;
+  text-decoration: none;
+}
+
+a.day-gap-chip:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
 }
 
 .day-gap-flag {
@@ -370,6 +377,13 @@ select {
   font-size: 0.7rem;
   color: var(--muted);
   max-width: 100%;
+  text-decoration: none;
+}
+
+a.account-with-icon:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
 }
 
 .account-with-icon .chip-flag {
@@ -697,6 +711,16 @@ button.publish-toggle:disabled {
   max-width: 10rem;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.accounts-table .account-profile-link {
+  font-size: inherit;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.accounts-table a.account-profile-link:hover {
+  color: var(--accent);
 }
 
 .accounts-table .table-select,

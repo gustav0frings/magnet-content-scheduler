@@ -223,10 +223,27 @@ const boot = {
         return el;
       }
 
+      function profileUrl(device) {
+        const handle = String(device?.name || "")
+          .trim()
+          .replace(/^@+/, "");
+        if (!handle) return null;
+        if (device.platform === "instagram") {
+          return `https://www.instagram.com/${encodeURIComponent(handle)}/`;
+        }
+        return `https://www.tiktok.com/@${encodeURIComponent(handle)}`;
+      }
+
       function accountLabel(device) {
         if (!device) return "";
-        const wrap = document.createElement("span");
+        const url = profileUrl(device);
+        const wrap = document.createElement(url ? "a" : "span");
         wrap.className = "account-with-icon";
+        if (url) {
+          wrap.href = url;
+          wrap.target = "_blank";
+          wrap.rel = "noopener noreferrer";
+        }
         wrap.appendChild(platformIconEl(device.platform));
         wrap.appendChild(document.createTextNode(device.name));
         return wrap;
@@ -383,9 +400,15 @@ const boot = {
           gapsLabel.textContent = m.dayNoContent;
           gaps.appendChild(gapsLabel);
           for (const d of missingAccounts) {
-            const chip = document.createElement("span");
+            const url = profileUrl(d);
+            const chip = document.createElement(url ? "a" : "span");
             chip.className = "day-gap-chip";
             chip.title = d.name;
+            if (url) {
+              chip.href = url;
+              chip.target = "_blank";
+              chip.rel = "noopener noreferrer";
+            }
             const flagEl = document.createElement("span");
             flagEl.className = "day-gap-flag";
             flagEl.textContent = flag(d.country);

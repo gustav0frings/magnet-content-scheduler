@@ -257,8 +257,21 @@ const boot = {
 
           const nameTd = document.createElement("td");
           nameTd.className = "account-name";
-          const nameWrap = document.createElement("span");
-          nameWrap.className = "account-with-icon";
+          const handle = String(account.name || "")
+            .trim()
+            .replace(/^@+/, "");
+          const profileUrl =
+            handle &&
+            (account.platform === "instagram"
+              ? `https://www.instagram.com/${encodeURIComponent(handle)}/`
+              : `https://www.tiktok.com/@${encodeURIComponent(handle)}`);
+          const nameWrap = document.createElement(profileUrl ? "a" : "span");
+          nameWrap.className = "account-with-icon account-profile-link";
+          if (profileUrl) {
+            nameWrap.href = profileUrl;
+            nameWrap.target = "_blank";
+            nameWrap.rel = "noopener noreferrer";
+          }
           const nameIcon = platformIconEl(account.platform);
           nameWrap.appendChild(nameIcon);
           nameWrap.appendChild(document.createTextNode(account.name));
