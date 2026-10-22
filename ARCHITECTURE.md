@@ -44,7 +44,7 @@ Par défaut : **jour courant + 7 jours suivants** (8 jours au total).
 
 Filtres : compte, pays.
 
-**Publiée** : coche + libellé Publiée / Non publiée (EN : Published / Not published). Télécharger marque publiée et grise le bouton. La coche marque ou annule, sans télécharger. `publishedAt` sur l’item. `POST /api/items/published` `{ "id", "published" }`. Distinct de `savedAt`.
+**Publiée** : coche + libellé Publiée / Non publiée (EN : Published / Not published). Télécharger marque publiée et grise le bouton (toujours cliquable pour re-télécharger). La coche marque ou annule, sans télécharger. `publishedAt` sur l’item. `POST /api/items/published` `{ "id", "published" }`. Distinct de `savedAt`.
 
 ## Envoi (AI) — sans redeploy, sans Blob Vercel
 

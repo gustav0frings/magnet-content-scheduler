@@ -304,13 +304,7 @@ const boot = {
         const dl = card.querySelector("a.download");
         if (dl) {
           dl.classList.toggle("is-published", on);
-          if (on) {
-            dl.setAttribute("aria-disabled", "true");
-            dl.removeAttribute("href");
-          } else {
-            dl.removeAttribute("aria-disabled");
-            if (dl.dataset.href) dl.href = dl.dataset.href;
-          }
+          if (dl.dataset.href) dl.href = dl.dataset.href;
         }
       }
 
@@ -380,15 +374,11 @@ const boot = {
       }
 
       async function onDownload(event, card, id) {
-        if (card.dataset.published === "1") {
-          event.preventDefault();
-          return;
-        }
-
         const dl = card.querySelector("a.download");
         const href = dl?.dataset.href || dl?.getAttribute("href");
         const filename = dl?.getAttribute("download") || "video.mp4";
         const m = t();
+        const alreadyPublished = card.dataset.published === "1";
 
         // iPhone/iPad: Web Share → “Enregistrer la vidéo” goes to Photos, not Files.
         if (isIosLike() && canShareVideoFile() && href) {
@@ -401,7 +391,7 @@ const boot = {
           }
           try {
             await shareVideoToPhotos(href, filename);
-            await markPublishedAfterDownload(card, id);
+            if (!alreadyPublished) await markPublishedAfterDownload(card, id);
           } catch (err) {
             if (err?.name === "AbortError") return;
             // Fallback: open inline so Safari can “Save Video” to Photos.
@@ -409,21 +399,19 @@ const boot = {
               ? `${href}&inline=1`
               : `${href}?inline=1`;
             window.open(inline, "_blank", "noopener,noreferrer");
-            await markPublishedAfterDownload(card, id);
+            if (!alreadyPublished) await markPublishedAfterDownload(card, id);
           } finally {
             if (dl) {
               dl.dataset.busy = "0";
               dl.classList.remove("is-busy");
-              if (card.dataset.published !== "1") {
-                dl.textContent = m.download;
-              }
+              dl.textContent = m.download;
             }
           }
           return;
         }
 
         // Desktop / Android: native download via href + attachment.
-        await markPublishedAfterDownload(card, id);
+        if (!alreadyPublished) await markPublishedAfterDownload(card, id);
       }
 
       function renderCalendar() {
@@ -622,8 +610,7 @@ const boot = {
               const dl = document.createElement("a");
               dl.className = published ? "download is-published" : "download";
               dl.dataset.href = downloadHref;
-              if (published) dl.setAttribute("aria-disabled", "true");
-              else dl.href = downloadHref;
+              dl.href = downloadHref;
               dl.setAttribute("download", downloadName);
               dl.setAttribute("data-i18n", "download");
               dl.textContent = m.download;

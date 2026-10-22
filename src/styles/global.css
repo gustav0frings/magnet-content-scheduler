@@ -545,7 +545,6 @@ button.publish-toggle:disabled {
 .card a.download.is-published {
   background: var(--border);
   color: var(--muted);
-  pointer-events: none;
 }
 
 .card a.download.is-busy {
