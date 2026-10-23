@@ -80,6 +80,7 @@ const boot = {
               class="account-picker-menu"
               id="device-picker-menu"
               role="listbox"
+              aria-multiselectable="true"
               hidden
             ></ul>
             <input type="hidden" id="device" value="" />
@@ -654,9 +655,9 @@ const boot = {
       }
 
       let lang = getCookie(cfg.cookieLang) === "fr" ? "fr" : getCookie(cfg.cookieLang) === "en" ? "en" : "";
-      let deviceId = getCookie(cfg.cookieDevice) || "";
+      let deviceIds = parseDeviceCookie(getCookie(cfg.cookieDevice));
       let pendingLang = lang || "en";
-      let pendingDevice = deviceId;
+      let pendingDevice = deviceIds[0] || "";
 
       const app = document.getElementById("app");
       const modal = document.getElementById("setup-modal");
@@ -687,12 +688,31 @@ const boot = {
       const regBack = document.getElementById("reg-back");
       const regError = document.getElementById("reg-error");
 
+      function parseDeviceCookie(raw) {
+        return [
+          ...new Set(
+            String(raw || "")
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean),
+          ),
+        ];
+      }
+
+      function serializeDeviceIds(ids) {
+        return [...new Set(ids.filter(Boolean))].join(",");
+      }
+
+      function knownDeviceIds(ids) {
+        return ids.filter((id) => devices.some((d) => d.id === id));
+      }
+
       const deviceSelect = {
-        get value() {
-          return deviceInput.value;
+        get values() {
+          return parseDeviceCookie(deviceInput.value);
         },
-        set value(next) {
-          setAccountPickerValue(next);
+        set values(next) {
+          setAccountPickerValues(next);
         },
       };
 
@@ -733,19 +753,33 @@ const boot = {
         el.append(flagSpan, platformIconEl(device.platform), document.createTextNode(device.name));
       }
 
+      function fillAccountPickerSummary(el, ids) {
+        el.replaceChildren();
+        if (ids.length === 0) {
+          el.textContent = t().allDevices;
+          return;
+        }
+        if (ids.length === 1) {
+          fillAccountPickerRow(el, devices.find((d) => d.id === ids[0]) || null);
+          return;
+        }
+        el.textContent = fill(t().nDevices, { count: String(ids.length) });
+      }
+
       function closeAccountPicker() {
         devicePickerMenu.hidden = true;
         devicePickerBtn.setAttribute("aria-expanded", "false");
       }
 
-      function setAccountPickerValue(next, { silent = false } = {}) {
-        const known = !next || devices.some((d) => d.id === next);
-        const value = known ? next || "" : "";
-        deviceInput.value = value;
-        const device = devices.find((d) => d.id === value);
-        fillAccountPickerRow(devicePickerCurrent, device || null);
+      function setAccountPickerValues(next, { silent = false } = {}) {
+        const ids = knownDeviceIds(Array.isArray(next) ? next : parseDeviceCookie(next));
+        deviceInput.value = serializeDeviceIds(ids);
+        fillAccountPickerSummary(devicePickerCurrent, ids);
         devicePickerMenu.querySelectorAll("[role=option]").forEach((opt) => {
-          opt.setAttribute("aria-selected", opt.dataset.value === value ? "true" : "false");
+          const value = opt.dataset.value || "";
+          const selected =
+            value === "" ? ids.length === 0 : ids.includes(value);
+          opt.setAttribute("aria-selected", selected ? "true" : "false");
         });
         if (!silent) {
           deviceInput.dispatchEvent(new Event("change", { bubbles: true }));
@@ -753,7 +787,8 @@ const boot = {
       }
 
       function syncDeviceSelect() {
-        const current = deviceInput.value;
+        const raw = parseDeviceCookie(deviceInput.value);
+        const current = knownDeviceIds(raw);
         devicePickerMenu.innerHTML = "";
 
         const allOpt = document.createElement("li");
@@ -771,13 +806,10 @@ const boot = {
           devicePickerMenu.appendChild(opt);
         }
 
+        // Empty input = "all accounts". Only fall back when stale ids remain.
         const next =
-          devices.some((d) => d.id === current) || current === ""
-            ? current
-            : deviceId && devices.some((d) => d.id === deviceId)
-              ? deviceId
-              : "";
-        setAccountPickerValue(next, { silent: true });
+          raw.length === 0 ? [] : current.length > 0 ? current : knownDeviceIds(deviceIds);
+        setAccountPickerValues(next, { silent: true });
 
         const countries = [...new Set(devices.map((d) => d.country))];
         const cCur = countrySelect.value;
@@ -867,22 +899,28 @@ const boot = {
         });
 
         if (langSelect && lang) langSelect.value = lang;
+        fillAccountPickerSummary(devicePickerCurrent, deviceSelect.values);
       }
 
       function applyFilters() {
-        deviceId = deviceSelect.value || "";
+        deviceIds = deviceSelect.values;
         const country = countrySelect.value || "";
         const m = t();
-        const device = devices.find((d) => d.id === deviceId);
+        const selected = deviceIds
+          .map((id) => devices.find((d) => d.id === id))
+          .filter(Boolean);
 
-        hint.textContent = device
-          ? fill(m.showingDevice, {
-              name: device.name,
-              country: flag(device.country),
-            })
-          : country
-            ? fill(m.showingCountry, { country: flag(country) })
-            : m.showingAll;
+        hint.textContent =
+          selected.length === 1
+            ? fill(m.showingDevice, {
+                name: selected[0].name,
+                country: flag(selected[0].country),
+              })
+            : selected.length > 1
+              ? fill(m.showingDevices, { count: String(selected.length) })
+              : country
+                ? fill(m.showingCountry, { country: flag(country) })
+                : m.showingAll;
 
         document.querySelectorAll(".card").forEach((card) => {
           const cardDevices = (card.getAttribute("data-devices") || card.getAttribute("data-device") || "")
@@ -891,7 +929,9 @@ const boot = {
           const cardCountries = (card.getAttribute("data-countries") || card.getAttribute("data-country") || "")
             .split(",")
             .filter(Boolean);
-          const okDevice = !deviceId || cardDevices.includes(deviceId);
+          const okDevice =
+            deviceIds.length === 0 ||
+            cardDevices.some((id) => deviceIds.includes(id));
           const okCountry = !country || cardCountries.includes(country);
           card.hidden = !(okDevice && okCountry);
         });
@@ -907,9 +947,9 @@ const boot = {
       }
 
       function finishWithDevice(id) {
-        deviceId = id;
+        deviceIds = id ? [id] : [];
         pendingDevice = id;
-        setCookie(cfg.cookieDevice, deviceId);
+        if (id) setCookie(cfg.cookieDevice, id);
         showApp();
       }
 
@@ -917,18 +957,25 @@ const boot = {
         modal.hidden = true;
         app.hidden = false;
         syncDeviceSelect();
-        // Default view = cookie device (select + country stay in sync).
-        // User can still switch the dropdown to "all devices".
-        const saved = getCookie(cfg.cookieDevice) || deviceId || "";
-        const d = devices.find((x) => x.id === saved);
-        if (d) {
-          deviceSelect.value = d.id;
-          countrySelect.value = d.country;
-          deviceId = d.id;
+        // Default view = cookie devices (multi). User can still pick "all".
+        const saved = knownDeviceIds(
+          parseDeviceCookie(getCookie(cfg.cookieDevice) || serializeDeviceIds(deviceIds)),
+        );
+        if (saved.length > 0) {
+          deviceSelect.values = saved;
+          deviceIds = saved;
+          const countries = [
+            ...new Set(
+              saved
+                .map((id) => devices.find((d) => d.id === id)?.country)
+                .filter(Boolean),
+            ),
+          ];
+          countrySelect.value = countries.length === 1 ? countries[0] : "";
         } else {
-          deviceSelect.value = "";
+          deviceSelect.values = [];
           countrySelect.value = "";
-          deviceId = "";
+          deviceIds = [];
         }
         renderCalendar();
         applyI18n();
@@ -945,7 +992,7 @@ const boot = {
         app.hidden = true;
         modal.hidden = false;
         pendingLang = lang || "en";
-        pendingDevice = deviceId || "";
+        pendingDevice = deviceIds[0] || "";
         stepLang.hidden = false;
         stepDevice.hidden = true;
         langNext.disabled = !pendingLang;
@@ -1061,8 +1108,16 @@ const boot = {
       devicePickerMenu.addEventListener("click", (event) => {
         const opt = event.target.closest("[role=option]");
         if (!opt) return;
-        setAccountPickerValue(opt.dataset.value || "");
-        closeAccountPicker();
+        const value = opt.dataset.value || "";
+        if (!value) {
+          setAccountPickerValues([]);
+          return;
+        }
+        const current = deviceSelect.values;
+        const next = current.includes(value)
+          ? current.filter((id) => id !== value)
+          : [...current, value];
+        setAccountPickerValues(next);
       });
 
       document.addEventListener("click", (event) => {
@@ -1070,14 +1125,22 @@ const boot = {
       });
 
       deviceInput.addEventListener("change", () => {
-        deviceId = deviceSelect.value;
-        // Keep the last real device in the cookie — "all devices" is a view
-        // filter only, otherwise the next visit thinks setup is missing.
-        if (deviceId) setCookie(cfg.cookieDevice, deviceId);
-        const d = devices.find((x) => x.id === deviceId);
-        // Sync country with the picked device; clear it for "all devices"
-        // so FR + US (etc.) all show up.
-        countrySelect.value = d ? d.country : "";
+        deviceIds = deviceSelect.values;
+        // Persist the selection; keep at least one id in the cookie so setup
+        // is not re-prompted when the view is "all accounts".
+        if (deviceIds.length > 0) {
+          setCookie(cfg.cookieDevice, serializeDeviceIds(deviceIds));
+        }
+        const countries = [
+          ...new Set(
+            deviceIds
+              .map((id) => devices.find((d) => d.id === id)?.country)
+              .filter(Boolean),
+          ),
+        ];
+        // Sync country when all selected accounts share one; otherwise clear
+        // so mixed FR + US (etc.) still show up.
+        countrySelect.value = countries.length === 1 ? countries[0] : "";
         applyFilters();
       });
 
@@ -1120,8 +1183,8 @@ const boot = {
         openSetup(false);
       } else {
         lang = getCookie(cfg.cookieLang) === "fr" ? "fr" : "en";
-        deviceId = getCookie(cfg.cookieDevice);
-        showApp(); // filters on cookie device by default
+        deviceIds = parseDeviceCookie(getCookie(cfg.cookieDevice));
+        showApp(); // filters on cookie devices by default
       }
     </script>
   </body>

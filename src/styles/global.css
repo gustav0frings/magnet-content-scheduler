@@ -154,14 +154,38 @@ select {
 .account-picker-menu [role="option"] {
   width: 100%;
   box-sizing: border-box;
-  padding: 0.55rem 0.65rem;
+  padding: 0.55rem 0.65rem 0.55rem 1.85rem;
   border-radius: 8px;
   cursor: pointer;
   color: var(--text);
   font-size: 0.95rem;
+  position: relative;
 }
 
-.account-picker-menu [role="option"]:hover,
+.account-picker-menu [role="option"]::before {
+  content: "";
+  position: absolute;
+  left: 0.55rem;
+  top: 50%;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: -0.425rem;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.account-picker-menu [role="option"][aria-selected="true"]::before {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--surface);
+}
+
+.account-picker-menu [role="option"]:hover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+}
+
 .account-picker-menu [role="option"][aria-selected="true"] {
   background: color-mix(in srgb, var(--accent) 16%, var(--bg));
 }
