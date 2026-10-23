@@ -33,13 +33,21 @@ Objet **compte** dans `magnet-devices.json` : `name`, `platform`, `country`, `wa
 - Lier : `npm run link-postiz -- --to <id> --integration <postizId>`
 - **Warm-up** : `send` refuse les comptes avec `warmupStartedAt`.
 
-## Créneaux (Europe/Paris)
+## Créneaux (fuseau du pays)
 
-`--at` = heure française. Uniquement **09:00** ou **19:00**.  
+`--at` = heure locale du compte. Uniquement **09:00** ou **19:00**.
+
+| Pays | Fuseau |
+| --- | --- |
+| FR | `Europe/Paris` |
+| US | `America/New_York` (ET) |
+| UK | `Europe/London` |
+
 Jamais deux vidéos au même slot sur le même compte. Max 2 / jour / compte.
 
 ```bash
-npm run next-slot -- --to yanndatingcoach-fr
+npm run next-slot -- --to yanndatingcoach-fr   # Paris
+npm run next-slot -- --to antoine-dating-us    # ET
 ```
 
 ## Envoi
@@ -49,10 +57,13 @@ cd /Users/slim/dev/magnet-content-scheduler
 npm run send -- --to yanndatingcoach-fr --at "2026-10-21 09:00" --title "…" ./video.mp4
 ```
 
-1. Upload mp4 → UploadThing.
-2. Append `magnet-schedule.json`.
-3. Si Postiz lié + `POSTIZ_API_KEY` → upload + `POST /public/v1/posts` au même `publishAt`.
-4. Webapp relit le JSON. Aucun redeploy.
+1. SHA-256 du mp4 → refuse si les **mêmes bits** sont déjà au schedule sur le même compte ou un autre compte de la **même plateforme** (TT×TT / IG×IG). TT + IG avec le même fichier = OK. Couvre le calendrier téléphone **et** le dual-schedule Postiz (refus avant tout upload).
+2. Upload mp4 → UploadThing.
+3. Append `magnet-schedule.json` (champ `contentHash`).
+4. Si Postiz lié + `POSTIZ_API_KEY` → upload + `POST /public/v1/posts` au même `publishAt`.
+5. Webapp relit le JSON. Aucun redeploy.
+
+**Anti-doublon** : Postiz n’expose pas de hash média — la source de vérité est `contentHash` dans le schedule. Toujours passer par `npm run send` (pas un schedule Postiz MCP seul) pour garder la dédup.
 
 ## Env
 

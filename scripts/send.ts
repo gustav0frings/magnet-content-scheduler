@@ -3,11 +3,15 @@
  * (also on UploadThing — no Vercel storage, no redeploy).
  * If the target account has `postizIntegrationId`, also schedule on Postiz.
  *
+ * Refuses bit-identical duplicates (SHA-256) on the same account or another
+ * account of the same platform — covers phone calendar + Postiz dual-schedule.
+ *
  * Usage:
  *   npm run send -- --to yanndatingcoach-fr --at "2026-10-21 09:00" --title "hook" ./video.mp4
  *
- * `--at` = Europe/Paris local time. Allowed hours: **09:00** or **19:00**.
- * Never two videos at the same slot on the same account.
+ * `--at` = local time of the account country:
+ *   FR → Europe/Paris, US → America/New_York (ET), UK → Europe/London.
+ * Allowed hours: **09:00** or **19:00**. Never two at the same slot on the same account.
  *
  * Env: UPLOADTHING_TOKEN, POSTIZ_API_KEY (when target is on Postiz)
  */
@@ -17,14 +21,19 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { UTApi, UTFile } from "uploadthing/server";
+import {
+  findContentDuplicate,
+  sha256Hex,
+} from "../src/lib/content-hash";
 import { isOnPostiz, listDevices } from "../src/lib/devices";
 import {
-  formatParisLocal,
-  isAllowedParisSlot,
-  parseParisLocal,
-  parisDayKey,
-  parisHour,
-} from "../src/lib/paris-time";
+  dayKeyInTz,
+  formatLocalAt,
+  hourInTz,
+  isAllowedSlot,
+  parseLocalAt,
+  tzLabel,
+} from "../src/lib/slot-time";
 import {
   listPostizIntegrations,
   schedulePostizVideo,
@@ -38,8 +47,10 @@ function usage(accountIds?: string[]): never {
   console.error(`Usage:
   npm run send -- --to <accountId> --at "<YYYY-MM-DD HH:mm>" [--title "..."] <file.mp4>
 
---at is Europe/Paris. Slots: 09:00 or 19:00 only. One account per send.
+--at is local to the account country (FR=Paris, US=ET/New_York, UK=London).
+Slots: 09:00 or 19:00 only. One account per send.
 Never two videos at the same slot on the same account.
+Bit-identical mp4 (SHA-256) refused on the same account / same platform.
 Accounts on Postiz (postizIntegrationId) are also scheduled via Postiz.
 Known accounts: ${accountIds?.join(", ") || "listDevices() / UploadThing + defaults"}`);
   process.exit(1);
@@ -106,30 +117,41 @@ async function main() {
 
   const abs = path.resolve(filePath);
   const buf = await readFile(abs);
+  const contentHash = sha256Hex(buf);
   const name = path.basename(abs);
   const title = values.title?.trim() || name.replace(/\.[^.]+$/, "");
-  const publishAt = parseParisLocal(values.at!);
   const primary = targets[0];
+  const country = primary.country;
+  const publishAt = parseLocalAt(values.at!, country);
+  const tz = tzLabel(country);
 
-  if (!isAllowedParisSlot(publishAt)) {
+  if (!isAllowedSlot(publishAt, country)) {
     console.error(
-      `Refuse: --at must be 09:00 or 19:00 Europe/Paris (got ${formatParisLocal(publishAt)}).`,
+      `Refuse: --at must be 09:00 or 19:00 ${tz} (got ${formatLocalAt(publishAt, country)}).`,
     );
     process.exit(1);
   }
 
-  // Same account + same Paris day + same hour → conflict
   const existing = await listItems();
-  const day = parisDayKey(publishAt);
-  const hour = parisHour(publishAt);
+
+  const dup = findContentDuplicate(existing, contentHash, primary, devices);
+  if (dup) {
+    console.error(
+      `Refuse: bit-identical video already scheduled (sha256 ${contentHash.slice(0, 12)}…):\n  ${dup.title} [${dup.id}] → ${dup.deviceIds.join(",")} @ ${dup.publishAt}\nSame bytes on the same account or same platform (TT×TT / IG×IG) are blocked — phone calendar and Postiz.\nTT + IG with the same file is OK (different platform). Re-encode / change the file if this is intentional.`,
+    );
+    process.exit(1);
+  }
+
+  const day = dayKeyInTz(publishAt, country);
+  const hour = hourInTz(publishAt, country);
   const clash = existing.find((item) => {
     if (!item.deviceIds.includes(primary.id)) return false;
     const at = new Date(item.publishAt);
-    return parisDayKey(at) === day && parisHour(at) === hour;
+    return dayKeyInTz(at, country) === day && hourInTz(at, country) === hour;
   });
   if (clash) {
     console.error(
-      `Refuse: ${primary.id} already has a video at ${formatParisLocal(publishAt)} Paris:\n  ${clash.title} [${clash.id}]\nPick the other slot (09:00 / 19:00) or another day (\`npx tsx scripts/next-slot.ts --to ${primary.id}\`).`,
+      `Refuse: ${primary.id} already has a video at ${formatLocalAt(publishAt, country)} ${tz}:\n  ${clash.title} [${clash.id}]\nPick the other slot (09:00 / 19:00) or another day (\`npm run next-slot -- --to ${primary.id}\`).`,
     );
     process.exit(1);
   }
@@ -137,7 +159,8 @@ async function main() {
   console.log(
     `Uploading ${name} (${(buf.byteLength / 1024 / 1024).toFixed(1)} MB) → UploadThing…`,
   );
-  console.log(`  slot: ${formatParisLocal(publishAt)} Europe/Paris`);
+  console.log(`  sha256: ${contentHash.slice(0, 16)}…`);
+  console.log(`  slot: ${formatLocalAt(publishAt, country)} ${tz}`);
 
   const utapi = new UTApi({ token });
   const file = new UTFile([buf], name, { type: "video/mp4" });
@@ -160,6 +183,7 @@ async function main() {
     title,
     url,
     fileKey,
+    contentHash,
     publishAt: publishAt.toISOString(),
   });
   console.log("Scheduled (phone calendar):", item);
@@ -167,7 +191,6 @@ async function main() {
     console.log(`  → ${d.name} (${d.platform}/${d.country})  inbox /api/inbox/${d.id}`);
   }
 
-  // Dual-schedule on Postiz when linked
   for (const d of targets) {
     if (!isOnPostiz(d)) {
       console.log(`  Postiz: skip ${d.id} (no postizIntegrationId)`);

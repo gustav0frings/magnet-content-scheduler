@@ -1,7 +1,8 @@
 /**
- * Suggest the next free 09:00 / 19:00 Europe/Paris slot for an account.
+ * Suggest the next free 09:00 / 19:00 slot for an account (local TZ by country).
  *
- *   npx tsx scripts/next-slot.ts --to yanndatingcoach-fr
+ *   npx tsx scripts/next-slot.ts --to yanndatingcoach-fr   # Europe/Paris
+ *   npx tsx scripts/next-slot.ts --to antoine-dating-us    # America/New_York (ET)
  *
  * Env: UPLOADTHING_TOKEN
  */
@@ -9,7 +10,11 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 import { listDevices } from "../src/lib/devices";
-import { formatParisLocal, nextFreeParisSlot } from "../src/lib/paris-time";
+import {
+  formatLocalAt,
+  nextFreeSlot,
+  tzLabel,
+} from "../src/lib/slot-time";
 import { listItems } from "../src/lib/schedule";
 
 async function main() {
@@ -39,9 +44,10 @@ async function main() {
   const occupied = items
     .filter((i) => i.deviceIds.includes(device.id))
     .map((i) => i.publishAt);
-  const slot = nextFreeParisSlot(occupied);
-  const at = formatParisLocal(slot);
-  console.log(`${device.id}  next free: ${at} Europe/Paris`);
+  const slot = nextFreeSlot(occupied, device.country);
+  const at = formatLocalAt(slot, device.country);
+  const tz = tzLabel(device.country);
+  console.log(`${device.id}  next free: ${at} ${tz}`);
   console.log(
     `npm run send -- --to ${device.id} --at "${at}" --title "…" ./video.mp4`,
   );

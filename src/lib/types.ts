@@ -18,6 +18,12 @@ export type ScheduleItem = {
   /** Public UploadThing URL (`ufsUrl`) */
   url: string;
   fileKey: string;
+  /**
+   * SHA-256 hex of the mp4 bytes (bit-identical fingerprint).
+   * Set by `npm run send`; used to refuse duplicate pushes.
+   * Absent on legacy rows.
+   */
+  contentHash?: string;
   /** ISO 8601 */
   publishAt: string;
   /** ISO 8601 when marked saved by phone shortcut */
