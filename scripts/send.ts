@@ -3,8 +3,8 @@
  * (also on UploadThing — no Vercel storage, no redeploy).
  *
  * Usage:
- *   npm run send -- --to yanndtingcoach-fr --at "2026-10-21 09:00" --title "hook" ./video.mp4
- *   npm run send -- --to yanndtingcoach-fr,kylliandatingexpert-fr --at "..." ./video.mp4
+ *   npm run send -- --to yanndatingcoach-fr --at "2026-10-21 09:00" --title "hook" ./video.mp4
+ *   npm run send -- --to yanndatingcoach-fr,kylliandatingexpert-fr --at "..." ./video.mp4
  *
  * Env: UPLOADTHING_TOKEN
  */

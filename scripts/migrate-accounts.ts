@@ -21,8 +21,8 @@ const NEW_ACCOUNTS: Device[] = [
     warmupStartedAt: null,
   },
   {
-    id: "yanndtingcoach-fr",
-    name: "yanndtingcoach",
+    id: "yanndatingcoach-fr",
+    name: "yanndatingcoach",
     country: "FR",
     platform: "instagram",
     warmupStartedAt: null,
@@ -52,7 +52,7 @@ const NEW_ACCOUNTS: Device[] = [
 
 /** Old account id → new account id(s). */
 const REMAP: Record<string, string[]> = {
-  "slim-iphone-1-fr": ["yanndtingcoach-fr"],
+  "slim-iphone-1-fr": ["yanndatingcoach-fr"],
   "slim-iphone-1-us": ["antoine-dating-us"],
   "corentin-fr": ["corentin-nope-fr", "kylliandatingexpert-fr"],
   "ben-walker-us": ["ben-walker-us"],

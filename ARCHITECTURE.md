@@ -36,7 +36,7 @@ Une vidéo → `deviceIds[]` (souvent IG + TT). CLI `--to a,b`.
 - **FR** → compte FR
 - **Warm-up** : ne jamais pousser vers un compte avec `warmupStartedAt` (encore en warm-up). `npm run send` refuse ces cibles. Uniquement les comptes prêts (`npm run devices` sans `warmup=`).
 
-Exemples : `yanndtingcoach-fr`, `antoine-dating-us`, `corentin-nope-fr`, `kylliandatingexpert-fr`.
+Exemples : `yanndatingcoach-fr`, `antoine-dating-us`, `corentin-nope-fr`, `kylliandatingexpert-fr`.
 
 ## Calendrier UI
 
