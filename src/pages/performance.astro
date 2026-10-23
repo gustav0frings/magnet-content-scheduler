@@ -8,6 +8,7 @@ const boot = {
   langs: UI_LANGS,
   messages,
   cookieLang: COOKIE_LANG,
+  storageDays: "magnet_scheduler_perf_days",
 };
 ---
 
@@ -29,9 +30,7 @@ const boot = {
         <div class="header-row">
           <div>
             <h1 data-i18n="performanceTitle">Performance</h1>
-            <p data-i18n="performanceSubtitle">
-              Views over the last 7 days (Postiz).
-            </p>
+            <p data-i18n="performanceSubtitle">Views from Postiz.</p>
           </div>
           <nav class="nav-links">
             <a href="/" data-i18n="navCalendar">Calendar</a>
@@ -52,6 +51,20 @@ const boot = {
             ))}
           </select>
         </label>
+        <div class="field">
+          <span data-i18n="performanceRange">Period</span>
+          <div class="perf-range" id="perf-range" role="group">
+            <button type="button" class="perf-range-btn" data-days="7" data-i18n="performanceDays7">
+              7 days
+            </button>
+            <button type="button" class="perf-range-btn" data-days="15" data-i18n="performanceDays15">
+              15 days
+            </button>
+            <button type="button" class="perf-range-btn" data-days="30" data-i18n="performanceDays30">
+              30 days
+            </button>
+          </div>
+        </div>
       </div>
 
       <p class="perf-status" id="perf-status" data-i18n="performanceLoading">
@@ -62,6 +75,26 @@ const boot = {
 
     <script define:vars={{ boot }}>
       const cfg = boot;
+      const ALLOWED_DAYS = [7, 15, 30];
+      const CREATOR_COLORS = [
+        "#e8ff47",
+        "#5b8cff",
+        "#ff6b6b",
+        "#c084fc",
+        "#6dcea3",
+        "#fbbf24",
+      ];
+
+      let lang =
+        getCookie(cfg.cookieLang) === "fr"
+          ? "fr"
+          : getCookie(cfg.cookieLang) === "en"
+            ? "en"
+            : "en";
+      let days = loadDays();
+      let payload = null;
+      let selectedId = null;
+      let loadAbort = null;
 
       function t() {
         return cfg.messages[lang] || cfg.messages.en;
@@ -78,19 +111,40 @@ const boot = {
         return m ? decodeURIComponent(m[1]) : "";
       }
 
-      function setCookie(name, value, days = 400) {
+      function setCookie(name, value, daysKeep = 400) {
         if (!value) return;
-        const maxAge = days * 24 * 60 * 60;
+        const maxAge = daysKeep * 24 * 60 * 60;
         const secure = location.protocol === "https:" ? "; Secure" : "";
         document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
       }
 
-      let lang =
-        getCookie(cfg.cookieLang) === "fr"
-          ? "fr"
-          : getCookie(cfg.cookieLang) === "en"
-            ? "en"
-            : "en";
+      function loadDays() {
+        try {
+          const n = Number(localStorage.getItem(cfg.storageDays));
+          if (ALLOWED_DAYS.includes(n)) return n;
+        } catch {
+          /* ignore */
+        }
+        return 7;
+      }
+
+      function saveDays(n) {
+        days = n;
+        try {
+          localStorage.setItem(cfg.storageDays, String(n));
+        } catch {
+          /* ignore */
+        }
+        syncRangeButtons();
+      }
+
+      function syncRangeButtons() {
+        document.querySelectorAll(".perf-range-btn").forEach((btn) => {
+          const active = Number(btn.dataset.days) === days;
+          btn.classList.toggle("is-active", active);
+          btn.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+      }
 
       function applyI18n() {
         const m = t();
@@ -123,11 +177,68 @@ const boot = {
         });
       }
 
-      /** Simple SVG line chart — no external deps. */
-      function drawChart(series, accent) {
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function drawBarChart(creators) {
         const w = 560;
-        const h = 160;
-        const pad = { t: 16, r: 12, b: 28, l: 40 };
+        const labelH = 52;
+        const pad = { t: 20, r: 12, b: labelH, l: 44 };
+        const h = 200 + labelH;
+        const innerW = w - pad.l - pad.r;
+        const innerH = h - pad.t - pad.b;
+        const max = Math.max(1, ...creators.map((c) => c.total));
+        const n = Math.max(1, creators.length);
+        const gap = 10;
+        const barW = Math.min(64, (innerW - gap * (n - 1)) / n);
+
+        const yTicks = [0, 0.5, 1]
+          .map((f) => {
+            const v = Math.round(max * f);
+            const y = pad.t + innerH - f * innerH;
+            return `<text x="${pad.l - 6}" y="${y + 3}" text-anchor="end" class="chart-tick">${formatNum(v)}</text>
+            <line x1="${pad.l}" y1="${y}" x2="${w - pad.r}" y2="${y}" class="chart-grid" />`;
+          })
+          .join("");
+
+        const bars = creators
+          .map((c, i) => {
+            const color = CREATOR_COLORS[i % CREATOR_COLORS.length];
+            const x =
+              pad.l +
+              (innerW - (barW * n + gap * (n - 1))) / 2 +
+              i * (barW + gap);
+            const barH = (c.total / max) * innerH;
+            const y = pad.t + innerH - barH;
+            const selected = selectedId === c.accountId;
+            const name =
+              c.name.length > 12 ? `${c.name.slice(0, 11)}…` : c.name;
+            return `
+              <g class="perf-bar ${selected ? "is-selected" : ""}" data-account-id="${escapeHtml(c.accountId)}" role="button" tabindex="0">
+                <rect class="perf-bar-hit" x="${x - 4}" y="${pad.t}" width="${barW + 8}" height="${innerH}" fill="transparent" />
+                <rect class="perf-bar-rect" x="${x}" y="${y}" width="${barW}" height="${Math.max(barH, 2)}" rx="6" fill="${color}" opacity="${selected || !selectedId ? 1 : 0.35}" />
+                <text x="${x + barW / 2}" y="${y - 6}" text-anchor="middle" class="chart-bar-value">${formatNum(c.total)}</text>
+                <text x="${x + barW / 2}" y="${h - 28}" text-anchor="middle" class="chart-bar-label">${escapeHtml(name)}</text>
+                <text x="${x + barW / 2}" y="${h - 12}" text-anchor="middle" class="chart-bar-sub">${escapeHtml(c.platform)}</text>
+              </g>`;
+          })
+          .join("");
+
+        return `<svg class="perf-svg perf-svg-bars" viewBox="0 0 ${w} ${h}" role="img">
+          ${yTicks}
+          ${bars}
+        </svg>`;
+      }
+
+      function drawLineChart(series, accent) {
+        const w = 560;
+        const h = 180;
+        const pad = { t: 16, r: 12, b: 28, l: 44 };
         const innerW = w - pad.l - pad.r;
         const innerH = h - pad.t - pad.b;
         const values = series.map((p) => p.total);
@@ -135,32 +246,43 @@ const boot = {
         const n = Math.max(1, series.length - 1);
 
         const pts = series.map((p, i) => {
-          const x = pad.l + (n === 0 ? innerW / 2 : (i / n) * innerW);
+          const x =
+            pad.l + (series.length <= 1 ? innerW / 2 : (i / n) * innerW);
           const y = pad.t + innerH - (p.total / max) * innerH;
           return { x, y, ...p };
         });
 
         const line = pts
-          .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+          .map(
+            (p, i) =>
+              `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`,
+          )
           .join(" ");
         const area =
           pts.length > 0
             ? `${line} L${pts[pts.length - 1].x.toFixed(1)},${(pad.t + innerH).toFixed(1)} L${pts[0].x.toFixed(1)},${(pad.t + innerH).toFixed(1)} Z`
             : "";
 
-        const yTicks = [0, 0.5, 1].map((f) => {
-          const v = Math.round(max * f);
-          const y = pad.t + innerH - f * innerH;
-          return `<text x="${pad.l - 6}" y="${y + 3}" text-anchor="end" class="chart-tick">${formatNum(v)}</text>
+        const yTicks = [0, 0.5, 1]
+          .map((f) => {
+            const v = Math.round(max * f);
+            const y = pad.t + innerH - f * innerH;
+            return `<text x="${pad.l - 6}" y="${y + 3}" text-anchor="end" class="chart-tick">${formatNum(v)}</text>
             <line x1="${pad.l}" y1="${y}" x2="${w - pad.r}" y2="${y}" class="chart-grid" />`;
-        });
+          })
+          .join("");
 
+        const step = series.length > 10 ? Math.ceil(series.length / 5) : 1;
         const xLabels = pts
-          .filter((_, i) => i === 0 || i === pts.length - 1 || pts.length <= 4)
+          .filter(
+            (_, i) =>
+              i === 0 || i === pts.length - 1 || i % step === 0,
+          )
           .map(
             (p) =>
               `<text x="${p.x}" y="${h - 8}" text-anchor="middle" class="chart-tick">${formatDay(p.date)}</text>`,
-          );
+          )
+          .join("");
 
         const dots = pts
           .map(
@@ -170,29 +292,54 @@ const boot = {
           .join("");
 
         return `<svg class="perf-svg" viewBox="0 0 ${w} ${h}" role="img" aria-hidden="true">
-          ${yTicks.join("")}
+          ${yTicks}
           <path d="${area}" fill="${accent}" fill-opacity="0.12" />
           <path d="${line}" fill="none" stroke="${accent}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
           ${dots}
-          ${xLabels.join("")}
+          ${xLabels}
         </svg>`;
       }
 
-      const CREATOR_COLORS = [
-        "#e8ff47",
-        "#5b8cff",
-        "#ff6b6b",
-        "#c084fc",
-        "#6dcea3",
-        "#fbbf24",
-      ];
+      function selectedCreator() {
+        if (!payload || !selectedId) return null;
+        return (
+          payload.creators.find((c) => c.accountId === selectedId) || null
+        );
+      }
 
-      function render(payload) {
+      function renderTopList(videos) {
+        const m = t();
+        if (!videos?.length) {
+          return `<p class="perf-hint">${m.performanceTopEmpty}</p>`;
+        }
+        const rows = videos
+          .map((v, i) => {
+            const link = v.releaseURL
+              ? `<a class="perf-top-link" href="${escapeHtml(v.releaseURL)}" target="_blank" rel="noopener noreferrer">${m.performanceOpenPost}</a>`
+              : "";
+            const day = v.publishDate
+              ? formatDay(v.publishDate.slice(0, 10))
+              : "";
+            return `<li class="perf-top-row">
+              <span class="perf-top-rank">${i + 1}</span>
+              <div class="perf-top-body">
+                <strong class="perf-top-title">${escapeHtml(v.title)}</strong>
+                <span class="perf-top-meta">${escapeHtml(v.creatorName)} · ${escapeHtml(v.platform)}${day ? ` · ${day}` : ""}</span>
+              </div>
+              <strong class="perf-top-views">${formatNum(v.views)}</strong>
+              ${link}
+            </li>`;
+          })
+          .join("");
+        return `<ol class="perf-top-list">${rows}</ol>`;
+      }
+
+      function render() {
         const status = document.getElementById("perf-status");
         const root = document.getElementById("perf-charts");
         const m = t();
 
-        if (!payload.configured || (payload.creators?.length ?? 0) === 0) {
+        if (!payload?.configured || (payload.creators?.length ?? 0) === 0) {
           status.hidden = false;
           status.textContent = m.performanceEmpty;
           root.hidden = true;
@@ -204,55 +351,130 @@ const boot = {
         root.hidden = false;
         root.innerHTML = "";
 
-        const totalCard = document.createElement("section");
-        totalCard.className = "perf-card perf-card-total";
-        totalCard.innerHTML = `
+        const creators = payload.creators;
+        const picked = selectedCreator();
+        const trendSeries = picked ? picked.series || [] : payload.total || [];
+        const trendTotal = picked ? picked.total : payload.grandTotal;
+        const trendColor = picked
+          ? CREATOR_COLORS[
+              Math.max(
+                0,
+                creators.findIndex((c) => c.accountId === picked.accountId),
+              ) % CREATOR_COLORS.length
+            ]
+          : "#e8ff47";
+
+        const barsCard = document.createElement("section");
+        barsCard.className = "perf-card perf-card-total";
+        barsCard.innerHTML = `
           <div class="perf-card-head">
-            <h2>${m.performanceTotal}</h2>
+            <h2>${m.performanceBars}</h2>
             <strong class="perf-total">${formatNum(payload.grandTotal)} <span>${m.performanceViews}</span></strong>
           </div>
-          ${drawChart(payload.total || [], "#e8ff47")}
+          <p class="perf-hint">${m.performancePickCreator}</p>
+          ${drawBarChart(creators)}
         `;
-        root.appendChild(totalCard);
+        root.appendChild(barsCard);
 
-        (payload.creators || []).forEach((c, i) => {
-          const color = CREATOR_COLORS[i % CREATOR_COLORS.length];
-          const card = document.createElement("section");
-          card.className = "perf-card";
-          card.innerHTML = `
-            <div class="perf-card-head">
-              <h2>${c.name} <span class="perf-platform">${c.platform}</span></h2>
-              <strong class="perf-total">${formatNum(c.total)} <span>${m.performanceViews}</span></strong>
-            </div>
-            ${drawChart(c.series || [], color)}
-          `;
-          root.appendChild(card);
+        const trendCard = document.createElement("section");
+        trendCard.className = "perf-card";
+        trendCard.innerHTML = `
+          <div class="perf-card-head">
+            <h2>${m.performanceTrend}${picked ? ` · ${escapeHtml(picked.name)}` : ` · ${m.performanceTotal}`}${picked ? ` <span class="perf-platform">${escapeHtml(picked.platform)}</span>` : ""}</h2>
+            <strong class="perf-total">${formatNum(trendTotal)} <span>${m.performanceViews}</span></strong>
+          </div>
+          ${
+            picked
+              ? `<button type="button" class="linkish perf-clear" id="perf-clear">${m.performanceClear}</button>`
+              : ""
+          }
+          ${drawLineChart(trendSeries, trendColor)}
+        `;
+        root.appendChild(trendCard);
+
+        const topCard = document.createElement("section");
+        topCard.className = "perf-card";
+        topCard.innerHTML = `
+          <div class="perf-card-head">
+            <h2>${m.performanceTop}</h2>
+          </div>
+          ${renderTopList(payload.topVideos || [])}
+        `;
+        root.appendChild(topCard);
+
+        barsCard.querySelectorAll(".perf-bar").forEach((g) => {
+          const id = g.getAttribute("data-account-id");
+          const activate = () => {
+            selectedId = selectedId === id ? null : id;
+            render();
+          };
+          g.addEventListener("click", activate);
+          g.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              activate();
+            }
+          });
         });
+
+        const clearBtn = document.getElementById("perf-clear");
+        if (clearBtn) {
+          clearBtn.addEventListener("click", () => {
+            selectedId = null;
+            render();
+          });
+        }
       }
 
       async function load() {
         const status = document.getElementById("perf-status");
         status.hidden = false;
         status.textContent = t().performanceLoading;
+        document.getElementById("perf-charts").hidden = true;
+        if (loadAbort) loadAbort.abort();
+        loadAbort = new AbortController();
         try {
-          const res = await fetch("/api/analytics/performance?days=7");
-          const payload = await res.json();
-          render(payload);
-        } catch {
+          const res = await fetch(
+            `/api/analytics/performance?days=${days}`,
+            { signal: loadAbort.signal },
+          );
+          payload = await res.json();
+          if (
+            selectedId &&
+            !payload.creators?.some((c) => c.accountId === selectedId)
+          ) {
+            selectedId = null;
+          }
+          render();
+        } catch (err) {
+          if (err?.name === "AbortError") return;
+          payload = null;
           status.hidden = false;
           status.textContent = t().performanceEmpty;
         }
       }
+
+      document.getElementById("perf-range").addEventListener("click", (e) => {
+        const btn = e.target.closest(".perf-range-btn");
+        if (!btn) return;
+        const next = Number(btn.dataset.days);
+        if (!ALLOWED_DAYS.includes(next) || next === days) return;
+        saveDays(next);
+        load();
+      });
 
       const langSelect = document.getElementById("lang");
       langSelect.addEventListener("change", () => {
         lang = langSelect.value === "fr" ? "fr" : "en";
         setCookie(cfg.cookieLang, lang);
         applyI18n();
-        load();
+        syncRangeButtons();
+        if (payload) render();
+        else load();
       });
 
       applyI18n();
+      syncRangeButtons();
       load();
     </script>
   </body>

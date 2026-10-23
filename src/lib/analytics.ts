@@ -249,6 +249,17 @@ export type CreatorSeries = {
   total: number;
 };
 
+export type TopVideo = {
+  postId: string;
+  title: string;
+  views: number;
+  publishDate: string | null;
+  releaseURL: string | null;
+  accountId: string | null;
+  creatorName: string;
+  platform: string;
+};
+
 export type PerformancePayload = {
   days: number;
   from: string;
@@ -256,6 +267,7 @@ export type PerformancePayload = {
   creators: CreatorSeries[];
   total: { date: string; total: number }[];
   grandTotal: number;
+  topVideos: TopVideo[];
   configured: boolean;
 };
 
@@ -289,6 +301,7 @@ export async function performanceLastDays(
     creators: [],
     total: [],
     grandTotal: 0,
+    topVideos: [],
     configured: hasPostizApiKey(),
   };
 
@@ -296,6 +309,10 @@ export async function performanceLastDays(
 
   const linked = devices.filter((d) => d.postizIntegrationId?.trim());
   if (linked.length === 0) return empty;
+
+  const deviceByIntegration = new Map(
+    linked.map((d) => [d.postizIntegrationId!, d] as const),
+  );
 
   let posts: PostizPost[] = [];
   try {
@@ -307,19 +324,40 @@ export async function performanceLastDays(
   const published = posts.filter((p) => p.state === "PUBLISHED" && p.integration?.id);
 
   const postViews = await mapPool(published, 4, async (post) => {
-    const cached = cacheGet(postViewsCache, post.id);
+    const cacheKey = `${post.id}:${days}`;
+    const cached = cacheGet(postViewsCache, cacheKey);
     if (cached !== undefined) {
       return { post, views: cached };
     }
     try {
       const metrics = await getPostAnalytics(post.id, days);
       const views = extractViewsTotal(metrics);
-      cacheSet(postViewsCache, post.id, views);
+      cacheSet(postViewsCache, cacheKey, views);
       return { post, views };
     } catch {
       return { post, views: null as number | null };
     }
   });
+
+  const topVideos: TopVideo[] = postViews
+    .filter((row): row is { post: PostizPost; views: number } => row.views != null)
+    .map(({ post, views }) => {
+      const device = post.integration?.id
+        ? deviceByIntegration.get(post.integration.id)
+        : undefined;
+      return {
+        postId: post.id,
+        title: stripHtml(post.content ?? "") || "(untitled)",
+        views,
+        publishDate: post.publishDate ?? null,
+        releaseURL: post.releaseURL ?? null,
+        accountId: device?.id ?? null,
+        creatorName: device?.name ?? post.integration?.name ?? "?",
+        platform: device?.platform ?? post.integration?.providerIdentifier ?? "",
+      };
+    })
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 20);
 
   const seriesByIntegration = new Map<string, Map<string, number>>();
   for (const d of linked) {
@@ -403,6 +441,7 @@ export async function performanceLastDays(
     creators: creators.sort((a, b) => b.total - a.total),
     total,
     grandTotal,
+    topVideos,
     configured: true,
   };
 }

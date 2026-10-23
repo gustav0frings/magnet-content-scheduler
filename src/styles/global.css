@@ -1071,9 +1071,155 @@ button.primary:disabled {
   margin-top: 0.25rem;
 }
 
+.perf-hint {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.perf-clear {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+}
+
+.perf-range {
+  display: inline-flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.perf-range-btn {
+  appearance: none;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.perf-range-btn:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.perf-range-btn.is-active {
+  color: var(--accent-text);
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.perf-bar {
+  cursor: pointer;
+}
+
+.perf-bar:focus {
+  outline: none;
+}
+
+.perf-bar:focus .perf-bar-rect,
+.perf-bar.is-selected .perf-bar-rect {
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+
+.perf-top-list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.perf-top-row {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto auto;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.perf-top-rank {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.perf-top-body {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.perf-top-title {
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.perf-top-meta {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.perf-top-views {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-size: 0.95rem;
+}
+
+.perf-top-link {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.perf-top-link:hover {
+  color: var(--text);
+}
+
+@media (max-width: 560px) {
+  .perf-top-row {
+    grid-template-columns: 1.25rem 1fr auto;
+  }
+  .perf-top-link {
+    grid-column: 2 / -1;
+  }
+}
+
 .chart-tick {
   fill: var(--muted);
   font-size: 10px;
+  font-family: "IBM Plex Sans", sans-serif;
+}
+
+.chart-bar-value {
+  fill: var(--text);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: "IBM Plex Sans", sans-serif;
+}
+
+.chart-bar-label {
+  fill: var(--text);
+  font-size: 10px;
+  font-family: "IBM Plex Sans", sans-serif;
+}
+
+.chart-bar-sub {
+  fill: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   font-family: "IBM Plex Sans", sans-serif;
 }
 

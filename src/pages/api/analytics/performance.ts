@@ -6,14 +6,13 @@ import { listDevices } from "../../../lib/devices";
 export const prerender = false;
 
 /**
- * 7-day (default) views series per Postiz-linked creator + total.
- * GET /api/analytics/performance?days=7
+ * Views series per Postiz-linked creator + total + top videos.
+ * GET /api/analytics/performance?days=7|15|30
  */
 export const GET: APIRoute = async ({ url }) => {
+  const allowed = new Set([7, 15, 30]);
   const daysRaw = Number(url.searchParams.get("days") ?? "7");
-  const days = Number.isFinite(daysRaw)
-    ? Math.min(90, Math.max(1, Math.round(daysRaw)))
-    : 7;
+  const days = allowed.has(daysRaw) ? daysRaw : 7;
 
   try {
     const devices = await listDevices();
@@ -35,6 +34,7 @@ export const GET: APIRoute = async ({ url }) => {
         creators: [],
         total: [],
         grandTotal: 0,
+        topVideos: [],
         configured: false,
         error: "analytics_failed",
       },
