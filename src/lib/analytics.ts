@@ -5,14 +5,13 @@
 
 import type { Device } from "./devices";
 import {
-  extractViewsSeries,
   extractViewsTotal,
-  getPlatformAnalytics,
   getPostAnalytics,
   hasPostizApiKey,
   listPostizPosts,
   type PostizPost,
 } from "./postiz";
+import { listItems } from "./schedule";
 import type { ScheduleItem } from "./types";
 
 const MATCH_MS = 3 * 60 * 1000; // publishAt vs Postiz publishDate
@@ -20,10 +19,6 @@ const ANALYTICS_TTL_MS = 5 * 60 * 1000;
 
 type CacheEntry<T> = { at: number; value: T };
 const postViewsCache = new Map<string, CacheEntry<number | null>>();
-const platformSeriesCache = new Map<
-  string,
-  CacheEntry<{ date: string; total: number }[]>
->();
 
 function cacheGet<T>(map: Map<string, CacheEntry<T>>, key: string): T | undefined {
   const hit = map.get(key);
@@ -255,6 +250,8 @@ export type TopVideo = {
   views: number;
   publishDate: string | null;
   releaseURL: string | null;
+  /** UploadThing mp4 when matched to the phone schedule (for thumb preview). */
+  thumbnailUrl: string | null;
   accountId: string | null;
   creatorName: string;
   platform: string;
@@ -282,7 +279,43 @@ function emptyDaySeries(fromIso: string, toIso: string): { date: string; total: 
   return out;
 }
 
-/** Last N days: views of published videos, one series per Postiz account + total. */
+/** Match a Postiz post to the UploadThing schedule row for a video thumb. */
+function scheduleThumbForPost(
+  post: PostizPost,
+  device: Device | undefined,
+  items: ScheduleItem[],
+): string | null {
+  if (items.length === 0) return null;
+  const byId = items.find((i) => i.postizPostId && i.postizPostId === post.id);
+  if (byId?.url) return byId.url;
+
+  const title = stripHtml(post.content ?? "").trim().toLowerCase();
+  if (!title) return null;
+  const itemMs = post.publishDate ? new Date(post.publishDate).getTime() : NaN;
+
+  let best: ScheduleItem | undefined;
+  let bestDelta = Infinity;
+  for (const item of items) {
+    if (device) {
+      const ids = item.deviceIds?.length ? item.deviceIds : [item.deviceId];
+      if (!ids.includes(device.id)) continue;
+    }
+    if (item.title.trim().toLowerCase() !== title) continue;
+    const delta = Number.isFinite(itemMs)
+      ? Math.abs(new Date(item.publishAt).getTime() - itemMs)
+      : 0;
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      best = item;
+    }
+  }
+  return best?.url ?? null;
+}
+
+/**
+ * Last N days: organic views from Postiz **posts only** (no account-level
+ * Views — those include Instagram/TikTok ads and inflate creators like Corentin).
+ */
 export async function performanceLastDays(
   devices: Device[],
   days = 7,
@@ -318,7 +351,14 @@ export async function performanceLastDays(
   try {
     posts = await listPostizPosts(from.toISOString(), to.toISOString());
   } catch {
-    // Fall back to platform-level series only
+    posts = [];
+  }
+
+  let scheduleItems: ScheduleItem[] = [];
+  try {
+    scheduleItems = await listItems();
+  } catch {
+    scheduleItems = [];
   }
 
   const published = posts.filter((p) => p.state === "PUBLISHED" && p.integration?.id);
@@ -351,6 +391,7 @@ export async function performanceLastDays(
         views,
         publishDate: post.publishDate ?? null,
         releaseURL: post.releaseURL ?? null,
+        thumbnailUrl: scheduleThumbForPost(post, device, scheduleItems),
         accountId: device?.id ?? null,
         creatorName: device?.name ?? post.integration?.name ?? "?",
         platform: device?.platform ?? post.integration?.providerIdentifier ?? "",
@@ -376,63 +417,33 @@ export async function performanceLastDays(
     dayMap.set(day, (dayMap.get(day) ?? 0) + views);
   }
 
-  // If post-level yielded nothing for an account, fall back to platform analytics
-  const creators: CreatorSeries[] = [];
-  for (const device of linked) {
+  const creators: CreatorSeries[] = linked.map((device) => {
     const integrationId = device.postizIntegrationId!;
     const dayMap = seriesByIntegration.get(integrationId)!;
-    let series = [...dayMap.entries()]
+    const series = [...dayMap.entries()]
       .map(([date, total]) => ({ date, total }))
       .sort((a, b) => a.date.localeCompare(b.date));
-    let total = series.reduce((sum, p) => sum + p.total, 0);
-
-    if (total === 0) {
-      const cacheKey = `${integrationId}:${days}`;
-      let platformSeries = cacheGet(platformSeriesCache, cacheKey);
-      if (platformSeries === undefined) {
-        try {
-          const metrics = await getPlatformAnalytics(integrationId, days);
-          platformSeries = extractViewsSeries(metrics);
-          cacheSet(platformSeriesCache, cacheKey, platformSeries);
-        } catch {
-          platformSeries = [];
-        }
-      }
-      if (platformSeries.length > 0) {
-        series = platformSeries;
-        total = series.reduce((sum, p) => sum + p.total, 0);
-      }
-    }
-
-    creators.push({
+    const total = series.reduce((sum, p) => sum + p.total, 0);
+    return {
       accountId: device.id,
       name: device.name,
       platform: device.platform,
       integrationId,
       series,
       total,
-    });
-  }
+    };
+  });
 
   const byDate = new Map(emptyDaySeries(fromIso, toIso).map((p) => [p.date, 0]));
   for (const c of creators) {
     for (const p of c.series) {
-      if (!byDate.has(p.date)) continue;
       byDate.set(p.date, (byDate.get(p.date) ?? 0) + p.total);
     }
   }
-  // If creators fell back to single-point platform totals, sum those into grandTotal
-  // even when dates don't align with our day grid.
-  let total = [...byDate.entries()]
+  const total = [...byDate.entries()]
     .map(([date, t]) => ({ date, total: t }))
     .sort((a, b) => a.date.localeCompare(b.date));
-  let grandTotal = total.reduce((sum, p) => sum + p.total, 0);
-  if (grandTotal === 0) {
-    grandTotal = creators.reduce((sum, c) => sum + c.total, 0);
-    if (creators.every((c) => c.series.length <= 1)) {
-      total = [{ date: toIso, total: grandTotal }];
-    }
-  }
+  const grandTotal = total.reduce((sum, p) => sum + p.total, 0);
 
   return {
     days,

@@ -314,6 +314,13 @@ const boot = {
         }
         const rows = videos
           .map((v, i) => {
+            const href = v.releaseURL || v.thumbnailUrl || "";
+            const thumbInner = v.thumbnailUrl
+              ? `<video src="${escapeHtml(v.thumbnailUrl)}#t=0.1" muted playsinline preload="metadata" aria-hidden="true"></video>`
+              : `<span class="perf-top-thumb-empty">▶</span>`;
+            const thumb = href
+              ? `<a class="perf-top-thumb" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(v.title)}">${thumbInner}</a>`
+              : `<span class="perf-top-thumb">${thumbInner}</span>`;
             const link = v.releaseURL
               ? `<a class="perf-top-link" href="${escapeHtml(v.releaseURL)}" target="_blank" rel="noopener noreferrer">${m.performanceOpenPost}</a>`
               : "";
@@ -322,6 +329,7 @@ const boot = {
               : "";
             return `<li class="perf-top-row">
               <span class="perf-top-rank">${i + 1}</span>
+              ${thumb}
               <div class="perf-top-body">
                 <strong class="perf-top-title">${escapeHtml(v.title)}</strong>
                 <span class="perf-top-meta">${escapeHtml(v.creatorName)} · ${escapeHtml(v.platform)}${day ? ` · ${day}` : ""}</span>
@@ -376,6 +384,16 @@ const boot = {
         `;
         root.appendChild(barsCard);
 
+        const topCard = document.createElement("section");
+        topCard.className = "perf-card";
+        topCard.innerHTML = `
+          <div class="perf-card-head">
+            <h2>${m.performanceTop}</h2>
+          </div>
+          ${renderTopList(payload.topVideos || [])}
+        `;
+        root.appendChild(topCard);
+
         const trendCard = document.createElement("section");
         trendCard.className = "perf-card";
         trendCard.innerHTML = `
@@ -391,16 +409,6 @@ const boot = {
           ${drawLineChart(trendSeries, trendColor)}
         `;
         root.appendChild(trendCard);
-
-        const topCard = document.createElement("section");
-        topCard.className = "perf-card";
-        topCard.innerHTML = `
-          <div class="perf-card-head">
-            <h2>${m.performanceTop}</h2>
-          </div>
-          ${renderTopList(payload.topVideos || [])}
-        `;
-        root.appendChild(topCard);
 
         barsCard.querySelectorAll(".perf-bar").forEach((g) => {
           const id = g.getAttribute("data-account-id");
