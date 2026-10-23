@@ -449,6 +449,22 @@ a.account-with-icon:hover {
   line-height: 1;
 }
 
+.badge-postiz {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  color: #0b3d2e;
+  background: #b8f0d4;
+  border: 1px solid #6dcea3;
+  text-transform: uppercase;
+}
+
 .account-chips {
   display: flex;
   flex-wrap: wrap;

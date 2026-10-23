@@ -275,6 +275,13 @@ const boot = {
           const nameIcon = platformIconEl(account.platform);
           nameWrap.appendChild(nameIcon);
           nameWrap.appendChild(document.createTextNode(account.name));
+          if (account.postizIntegrationId) {
+            const badge = document.createElement("span");
+            badge.className = "badge-postiz";
+            badge.textContent = m.postizBadge;
+            badge.title = m.postizBadgeTitle;
+            nameWrap.appendChild(badge);
+          }
           nameTd.appendChild(nameWrap);
           tr.appendChild(nameTd);
 

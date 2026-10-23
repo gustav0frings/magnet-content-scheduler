@@ -60,6 +60,7 @@ export const PATCH: APIRoute = async ({ request }) => {
     country?: string;
     platform?: string;
     warmupStartedAt?: string | null;
+    postizIntegrationId?: string | null;
   };
   try {
     body = await request.json();
@@ -73,11 +74,15 @@ export const PATCH: APIRoute = async ({ request }) => {
     country?: CountryCode;
     platform?: string;
     warmupStartedAt?: string | null;
+    postizIntegrationId?: string | null;
   } = {};
   if (body.name !== undefined) patch.name = body.name;
   if (body.platform !== undefined) patch.platform = body.platform;
   if (body.warmupStartedAt !== undefined) {
     patch.warmupStartedAt = body.warmupStartedAt;
+  }
+  if (body.postizIntegrationId !== undefined) {
+    patch.postizIntegrationId = body.postizIntegrationId;
   }
   if (body.country !== undefined) {
     const country = body.country.toUpperCase() as CountryCode;

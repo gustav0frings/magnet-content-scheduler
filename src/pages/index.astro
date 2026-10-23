@@ -246,6 +246,14 @@ const boot = {
         return `https://www.tiktok.com/@${encodeURIComponent(handle)}`;
       }
 
+      function postizBadgeEl() {
+        const badge = document.createElement("span");
+        badge.className = "badge-postiz";
+        badge.textContent = t().postizBadge;
+        badge.title = t().postizBadgeTitle;
+        return badge;
+      }
+
       function accountLabel(device) {
         if (!device) return "";
         const url = profileUrl(device);
@@ -258,6 +266,7 @@ const boot = {
         }
         wrap.appendChild(platformIconEl(device.platform));
         wrap.appendChild(document.createTextNode(device.name));
+        if (device.postizIntegrationId) wrap.appendChild(postizBadgeEl());
         return wrap;
       }
 
@@ -763,7 +772,12 @@ const boot = {
         const flagSpan = document.createElement("span");
         flagSpan.className = "chip-flag";
         flagSpan.textContent = flag(device.country);
-        el.append(flagSpan, platformIconEl(device.platform), document.createTextNode(device.name));
+        el.append(
+          flagSpan,
+          platformIconEl(device.platform),
+          document.createTextNode(device.name),
+        );
+        if (device.postizIntegrationId) el.appendChild(postizBadgeEl());
       }
 
       function fillAccountPickerSummary(el, ids) {

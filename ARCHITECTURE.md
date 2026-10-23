@@ -1,101 +1,69 @@
 # CONTENT SCHEDULER
 
-Planifie des vidéos Magnet vers des téléphones (iOS / Android), filtrées par device et pays.
+Planifie des vidéos Magnet vers des comptes (TikTok / Instagram), filtrées par compte et pays.
 
-Les vidéos sont **construites dans Cursor / Claude** avec les scripts de `animations/` (content-machine, montage-green-screen, etc.). L’IA **pousse ensuite le fichier vers UploadThing** via le CLI, puis enregistre le créneau dans la mini-app.
+Les vidéos sont **construites dans Cursor / Claude** avec les scripts de `animations/` (content-machine, montage-green-screen, etc.). L’IA **pousse ensuite le fichier vers UploadThing** via le CLI, enregistre le créneau dans la mini-app, et si le compte est lié à **Postiz**, planifie aussi la publication auto.
 
-Pas dans l’app Expo. Dossier dédié : `content-scheduler/`.
+Pas dans l’app Expo. Dossier dédié : `magnet-content-scheduler/`. Doc miroir Magnet : `docs/CONTENT_SCHEDULER.md`.
 
 ## Architecture
 
 ```text
-animations/  →  CLI (AI)  →  UploadThing (fichier)
-                    ↓
-              content-scheduler API  →  schedule (JSON)
-                    ↓
-         webapp publique /d?device=…  +  raccourci iPhone
+animations/  →  CLI (AI)  →  UploadThing (fichier + schedule.json)
+                    │                  ↓
+                    │         webapp Vercel (calendrier / inbox)
+                    │
+                    └─→  Postiz (si postizIntegrationId) → IG / TT
 ```
 
 | Pièce | Rôle |
 | --- | --- |
 | Scripts `animations/` | Claude / Cursor produit le mp4 |
-| CLI `content-scheduler` | L’IA upload le fichier chez UploadThing, puis enregistre le créneau |
-| UploadThing | Stocke la vidéo, URL publique (`ufsUrl`) — même pattern que le projet Astro |
-| Mini-app Vercel | UI + API qui **lisent** le schedule sur UploadThing (pas de stockage Vercel) |
-| Téléphone | Ouvre le lien public, choisit son device ; raccourci iPhone peut auto-sauver dans Photos |
+| CLI `send` | Upload UploadThing + schedule JSON (+ Postiz si lié) |
+| UploadThing | Vidéos + `magnet-schedule.json` / `magnet-devices.json` |
+| Postiz | Publication auto sur canaux connectés |
+| Mini-app Vercel | UI + API lecture schedule ; badge **Postiz** sur comptes liés |
+| Téléphone | Lien public / raccourci Photos (comptes non-Postiz ou secours) |
 
 ## Comptes
 
-Un seul objet : le **compte** (UI). Fichier `magnet-devices.json`. Création : nom, `platform` (`instagram` | `tiktok`), pays, optionnel `warmupStartedAt`. Cookie pour le compte choisi. `/accounts` = la même liste.
+Objet **compte** dans `magnet-devices.json` : `name`, `platform`, `country`, `warmupStartedAt`, `postizIntegrationId`.
 
-Une vidéo → `deviceIds[]` (souvent IG + TT). CLI `--to a,b`.
+- Badge UI **Postiz** si `postizIntegrationId` renseigné.
+- Lier : `npm run link-postiz -- --to <id> --integration <postizId>`
+- **Warm-up** : `send` refuse les comptes avec `warmupStartedAt`.
 
-### Routing langue → compte
+## Créneaux (Europe/Paris)
 
-- **EN** → compte US
-- **FR** → compte FR
-- **Warm-up** : ne jamais pousser vers un compte avec `warmupStartedAt` (encore en warm-up). `npm run send` refuse ces cibles. Uniquement les comptes prêts (`npm run devices` sans `warmup=`).
+`--at` = heure française. Uniquement **09:00** ou **19:00**.  
+Jamais deux vidéos au même slot sur le même compte. Max 2 / jour / compte.
 
-Exemples : `yanndatingcoach-fr`, `antoine-dating-us`, `corentin-nope-fr`, `kylliandatingexpert-fr`.
+```bash
+npm run next-slot -- --to yanndatingcoach-fr
+```
 
-## Calendrier UI
-
-Par défaut : **jour courant + 7 jours suivants** (8 jours au total).
-
-Filtres : compte, pays.
-
-**Publiée** : coche + libellé Publiée / Non publiée (EN : Published / Not published). Télécharger marque publiée et grise le bouton (toujours cliquable pour re-télécharger). La coche marque ou annule, sans télécharger. `publishedAt` sur l’item. `POST /api/items/published` `{ "id", "published" }`. Distinct de `savedAt`.
-
-## Envoi (AI) — sans redeploy, sans Blob Vercel
-
-La vidéo et le planning vivent sur **UploadThing** (plan free). Vercel n’héberge que le front.
+## Envoi
 
 ```bash
 cd /Users/slim/dev/magnet-content-scheduler
-npm run send -- --to slim-fr --at "2026-10-21 09:00" --title "tinder reverse" ./video.mp4
+npm run send -- --to yanndatingcoach-fr --at "2026-10-21 09:00" --title "…" ./video.mp4
 ```
 
-1. CLI upload le mp4 → UploadThing (`ufsUrl` + `key`).
-2. CLI lit/écrit `magnet-schedule.json` sur UploadThing avec `deviceId`, `country`, `title`, `publishAt`.
-3. La webapp Vercel relit ce JSON à chaque requête. Aucun redeploy.
+1. Upload mp4 → UploadThing.
+2. Append `magnet-schedule.json`.
+3. Si Postiz lié + `POSTIZ_API_KEY` → upload + `POST /public/v1/posts` au même `publishAt`.
+4. Webapp relit le JSON. Aucun redeploy.
 
-## Inbox téléphone
+## Env
 
-`GET /api/inbox/:deviceId` — vidéos de ce device dont `publishAt` est passé et pas encore `saved`.
-
-```json
-{ "items": [{ "id": "abc", "url": "https://xxxx.ufs.sh/f/…", "title": "…" }] }
-```
-
-`POST /api/inbox/:deviceId/done` — `{ "id": "abc" }` pour ne pas re-télécharger.
-
-## iPhone (optionnel, auto Photos)
-
-App **Raccourcis** (carré violet) :
-
-1. GET `/api/inbox/<deviceId>`
-2. Pour chaque item : télécharger l’URL → Enregistrer dans Récents
-3. POST `/done`
-4. Automatisation heure fixe, sans demander confirmation
-
-## Env vars (requis pour push)
-
-Fichier : `.env` (voir `.env.example`). Dupliqué aussi dans Magnet : `docs/CONTENT_SCHEDULER.md`.
-
-| Variable | Où | Rôle |
-| --- | --- | --- |
-| `UPLOADTHING_TOKEN` | **CLI local** (obligatoire pour `npm run send`) + **Vercel** | Upload vidéo + lecture/écriture du schedule JSON. Même token que le projet Astro (dashboard UploadThing → API keys). |
-| `INBOX_SECRET` | Optionnel | Protège `POST /api/items` si enregistrement via HTTP au lieu du CLI |
-
-```bash
-# .env
-UPLOADTHING_TOKEN=eyJ…   # required to push
-# INBOX_SECRET=…         # optional
-```
-
-Sans `UPLOADTHING_TOKEN`, `npm run send` échoue. Pas de Blob Vercel, pas de `SCHEDULER_URL`.
+| Variable | Rôle |
+| --- | --- |
+| `UPLOADTHING_TOKEN` | CLI + Vercel |
+| `POSTIZ_API_KEY` | Dual-schedule Postiz |
+| `INBOX_SECRET` | Optionnel, `POST /api/items` |
 
 ## Stack
 
-- Astro + adapter Vercel (UI only)
-- UploadThing : vidéos + `schedule.json` (`UTApi`, même pattern qu’Astro)
+- Astro + adapter Vercel (UI)
+- UploadThing (`UTApi`)
+- Postiz Public API

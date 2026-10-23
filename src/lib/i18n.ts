@@ -70,6 +70,8 @@ export const messages = {
     accountSaveError: "Could not save",
     accountsOnVideo: "Accounts",
     dayNoContent: "No content",
+    postizBadge: "Postiz",
+    postizBadgeTitle: "Also scheduled on Postiz",
   },
   fr: {
     title: "Content Scheduler",
@@ -132,5 +134,7 @@ export const messages = {
     accountSaveError: "Enregistrement impossible",
     accountsOnVideo: "Comptes",
     dayNoContent: "Sans contenu",
+    postizBadge: "Postiz",
+    postizBadgeTitle: "Aussi planifié sur Postiz",
   },
 } as const;

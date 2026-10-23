@@ -26,8 +26,9 @@ async function main() {
   for (const d of devices) {
     const plat = d.platform === "instagram" ? "IG" : "TT";
     const warm = d.warmupStartedAt ? ` warmup=${d.warmupStartedAt}` : "";
+    const postiz = d.postizIntegrationId ? " postiz" : "";
     console.log(
-      `  ${d.id.padEnd(24)}  ${d.name}  (${d.country}, ${plat})${warm}`,
+      `  ${d.id.padEnd(24)}  ${d.name}  (${d.country}, ${plat})${warm}${postiz}`,
     );
   }
   console.log(`\n${devices.length} account(s)`);

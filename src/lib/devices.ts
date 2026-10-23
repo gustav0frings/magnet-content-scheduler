@@ -37,7 +37,17 @@ export type Device = {
   platform: AccountPlatform;
   /** Warm-up start `YYYY-MM-DD`, or null when not in warm-up. */
   warmupStartedAt: string | null;
+  /**
+   * Postiz channel id when this account is connected on Postiz.
+   * When set, `npm run send` also schedules the video on Postiz.
+   */
+  postizIntegrationId: string | null;
 };
+
+/** True when the account is linked to a Postiz channel. */
+export function isOnPostiz(device: Device): boolean {
+  return Boolean(device.postizIntegrationId?.trim());
+}
 
 /** Seed accounts when UploadThing has no devices file yet. */
 export const DEFAULT_DEVICES: Device[] = [];
@@ -120,6 +130,12 @@ export function slugifyDeviceId(name: string, country: CountryCode): string {
   return `${base}-${suffix}`;
 }
 
+function normalizePostizId(raw: unknown): string | null {
+  if (raw == null || raw === "") return null;
+  const id = String(raw).trim();
+  return id || null;
+}
+
 function normalizeDevice(raw: Device): Device | null {
   if (!raw?.id || !raw?.name || !raw?.country) return null;
   if (!COUNTRY_CODES.includes(raw.country)) return null;
@@ -129,6 +145,9 @@ function normalizeDevice(raw: Device): Device | null {
     country: raw.country,
     platform: coercePlatform(raw.platform),
     warmupStartedAt: raw.warmupStartedAt ?? null,
+    postizIntegrationId: normalizePostizId(
+      (raw as Device).postizIntegrationId,
+    ),
   };
 }
 
@@ -181,6 +200,7 @@ export async function registerDevice(input: {
     country: input.country,
     platform,
     warmupStartedAt: normalizeWarmupDate(input.warmupStartedAt),
+    postizIntegrationId: null,
   };
   devices.push(device);
   await saveDevices(devices);
@@ -194,6 +214,7 @@ export async function updateDevice(
     country?: CountryCode;
     platform?: string;
     warmupStartedAt?: string | null;
+    postizIntegrationId?: string | null;
   },
 ): Promise<Device | null> {
   const devices = await listDevices();
@@ -216,6 +237,9 @@ export async function updateDevice(
   }
   if (patch.warmupStartedAt !== undefined) {
     device.warmupStartedAt = normalizeWarmupDate(patch.warmupStartedAt);
+  }
+  if (patch.postizIntegrationId !== undefined) {
+    device.postizIntegrationId = normalizePostizId(patch.postizIntegrationId);
   }
 
   await saveDevices(devices);

@@ -8,6 +8,8 @@
     "preview": "astro preview",
     "send": "tsx scripts/send.ts",
     "devices": "tsx scripts/devices.ts",
+    "next-slot": "tsx scripts/next-slot.ts",
+    "link-postiz": "tsx scripts/link-postiz.ts",
     "clear-old": "tsx scripts/clear-old.ts"
   },
   "dependencies": {
