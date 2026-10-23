@@ -70,8 +70,14 @@ npm run send -- --to yanndatingcoach-fr --at "2026-10-21 09:00" --title "…" ./
 | Variable | Rôle |
 | --- | --- |
 | `UPLOADTHING_TOKEN` | CLI + Vercel |
-| `POSTIZ_API_KEY` | Dual-schedule Postiz |
+| `POSTIZ_API_KEY` | Dual-schedule Postiz **+** analytics web (`/api/analytics/*`, vues calendrier, `/performance`) — **CLI et Vercel** |
 | `INBOX_SECRET` | Optionnel, `POST /api/items` |
+
+### Analytics (Postiz)
+
+- Calendrier : après paint, `GET /api/analytics/views?ids=…` (ne bloque pas le SSR).
+- `/performance` : charts 7j — un par compte Postiz + total (`GET /api/analytics/performance?days=7`).
+- Les nouveaux `send` / `sync-postiz` stockent `postizPostId` sur la ligne schedule pour matcher les vues.
 
 ## Stack
 

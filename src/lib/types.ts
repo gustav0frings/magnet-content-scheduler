@@ -30,6 +30,11 @@ export type ScheduleItem = {
   savedAt: string | null;
   /** ISO 8601 when marked published in the calendar (download or check). Null = not published. */
   publishedAt: string | null;
+  /**
+   * Postiz post id when dual-scheduled via `send` / `sync-postiz`.
+   * Used to fetch per-video views; absent on legacy / phone-only rows.
+   */
+  postizPostId?: string | null;
   createdAt: string;
 };
 

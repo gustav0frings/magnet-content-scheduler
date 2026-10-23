@@ -1,0 +1,259 @@
+---
+export const prerender = false;
+
+import "../styles/global.css";
+import { COOKIE_LANG, messages, UI_LANGS } from "../lib/i18n";
+
+const boot = {
+  langs: UI_LANGS,
+  messages,
+  cookieLang: COOKIE_LANG,
+};
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Magnet · Performance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Serif:wght@600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="wrap performance-page" id="app">
+      <header>
+        <div class="header-row">
+          <div>
+            <h1 data-i18n="performanceTitle">Performance</h1>
+            <p data-i18n="performanceSubtitle">
+              Views over the last 7 days (Postiz).
+            </p>
+          </div>
+          <nav class="nav-links">
+            <a href="/" data-i18n="navCalendar">Calendar</a>
+            <a href="/performance" class="nav-current" data-i18n="navPerformance"
+              >Performance</a
+            >
+            <a href="/accounts" data-i18n="navAccounts">Accounts</a>
+          </nav>
+        </div>
+      </header>
+
+      <div class="pickers">
+        <label class="field">
+          <span data-i18n="language">Language</span>
+          <select id="lang" aria-label="Language">
+            {UI_LANGS.map((l) => (
+              <option value={l.id}>{l.label}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <p class="perf-status" id="perf-status" data-i18n="performanceLoading">
+        Loading charts…
+      </p>
+      <div id="perf-charts" class="perf-charts" hidden></div>
+    </div>
+
+    <script define:vars={{ boot }}>
+      const cfg = boot;
+
+      function t() {
+        return cfg.messages[lang] || cfg.messages.en;
+      }
+
+      function getCookie(name) {
+        const m = document.cookie.match(
+          new RegExp(
+            "(?:^|; )" +
+              name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") +
+              "=([^;]*)",
+          ),
+        );
+        return m ? decodeURIComponent(m[1]) : "";
+      }
+
+      function setCookie(name, value, days = 400) {
+        if (!value) return;
+        const maxAge = days * 24 * 60 * 60;
+        const secure = location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
+      }
+
+      let lang =
+        getCookie(cfg.cookieLang) === "fr"
+          ? "fr"
+          : getCookie(cfg.cookieLang) === "en"
+            ? "en"
+            : "en";
+
+      function applyI18n() {
+        const m = t();
+        document.querySelectorAll("[data-i18n]").forEach((el) => {
+          const key = el.getAttribute("data-i18n");
+          if (key && m[key] != null) el.textContent = m[key];
+        });
+        document.documentElement.lang = lang;
+        const sel = document.getElementById("lang");
+        if (sel) sel.value = lang;
+      }
+
+      function formatNum(n) {
+        try {
+          return new Intl.NumberFormat(lang === "fr" ? "fr-FR" : "en-GB", {
+            notation: n >= 10000 ? "compact" : "standard",
+            maximumFractionDigits: 1,
+          }).format(n);
+        } catch {
+          return String(n);
+        }
+      }
+
+      function formatDay(iso) {
+        const d = new Date(`${iso}T12:00:00Z`);
+        return d.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+        });
+      }
+
+      /** Simple SVG line chart — no external deps. */
+      function drawChart(series, accent) {
+        const w = 560;
+        const h = 160;
+        const pad = { t: 16, r: 12, b: 28, l: 40 };
+        const innerW = w - pad.l - pad.r;
+        const innerH = h - pad.t - pad.b;
+        const values = series.map((p) => p.total);
+        const max = Math.max(1, ...values);
+        const n = Math.max(1, series.length - 1);
+
+        const pts = series.map((p, i) => {
+          const x = pad.l + (n === 0 ? innerW / 2 : (i / n) * innerW);
+          const y = pad.t + innerH - (p.total / max) * innerH;
+          return { x, y, ...p };
+        });
+
+        const line = pts
+          .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+          .join(" ");
+        const area =
+          pts.length > 0
+            ? `${line} L${pts[pts.length - 1].x.toFixed(1)},${(pad.t + innerH).toFixed(1)} L${pts[0].x.toFixed(1)},${(pad.t + innerH).toFixed(1)} Z`
+            : "";
+
+        const yTicks = [0, 0.5, 1].map((f) => {
+          const v = Math.round(max * f);
+          const y = pad.t + innerH - f * innerH;
+          return `<text x="${pad.l - 6}" y="${y + 3}" text-anchor="end" class="chart-tick">${formatNum(v)}</text>
+            <line x1="${pad.l}" y1="${y}" x2="${w - pad.r}" y2="${y}" class="chart-grid" />`;
+        });
+
+        const xLabels = pts
+          .filter((_, i) => i === 0 || i === pts.length - 1 || pts.length <= 4)
+          .map(
+            (p) =>
+              `<text x="${p.x}" y="${h - 8}" text-anchor="middle" class="chart-tick">${formatDay(p.date)}</text>`,
+          );
+
+        const dots = pts
+          .map(
+            (p) =>
+              `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${accent}" />`,
+          )
+          .join("");
+
+        return `<svg class="perf-svg" viewBox="0 0 ${w} ${h}" role="img" aria-hidden="true">
+          ${yTicks.join("")}
+          <path d="${area}" fill="${accent}" fill-opacity="0.12" />
+          <path d="${line}" fill="none" stroke="${accent}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+          ${dots}
+          ${xLabels.join("")}
+        </svg>`;
+      }
+
+      const CREATOR_COLORS = [
+        "#e8ff47",
+        "#5b8cff",
+        "#ff6b6b",
+        "#c084fc",
+        "#6dcea3",
+        "#fbbf24",
+      ];
+
+      function render(payload) {
+        const status = document.getElementById("perf-status");
+        const root = document.getElementById("perf-charts");
+        const m = t();
+
+        if (!payload.configured || (payload.creators?.length ?? 0) === 0) {
+          status.hidden = false;
+          status.textContent = m.performanceEmpty;
+          root.hidden = true;
+          root.innerHTML = "";
+          return;
+        }
+
+        status.hidden = true;
+        root.hidden = false;
+        root.innerHTML = "";
+
+        const totalCard = document.createElement("section");
+        totalCard.className = "perf-card perf-card-total";
+        totalCard.innerHTML = `
+          <div class="perf-card-head">
+            <h2>${m.performanceTotal}</h2>
+            <strong class="perf-total">${formatNum(payload.grandTotal)} <span>${m.performanceViews}</span></strong>
+          </div>
+          ${drawChart(payload.total || [], "#e8ff47")}
+        `;
+        root.appendChild(totalCard);
+
+        (payload.creators || []).forEach((c, i) => {
+          const color = CREATOR_COLORS[i % CREATOR_COLORS.length];
+          const card = document.createElement("section");
+          card.className = "perf-card";
+          card.innerHTML = `
+            <div class="perf-card-head">
+              <h2>${c.name} <span class="perf-platform">${c.platform}</span></h2>
+              <strong class="perf-total">${formatNum(c.total)} <span>${m.performanceViews}</span></strong>
+            </div>
+            ${drawChart(c.series || [], color)}
+          `;
+          root.appendChild(card);
+        });
+      }
+
+      async function load() {
+        const status = document.getElementById("perf-status");
+        status.hidden = false;
+        status.textContent = t().performanceLoading;
+        try {
+          const res = await fetch("/api/analytics/performance?days=7");
+          const payload = await res.json();
+          render(payload);
+        } catch {
+          status.hidden = false;
+          status.textContent = t().performanceEmpty;
+        }
+      }
+
+      const langSelect = document.getElementById("lang");
+      langSelect.addEventListener("change", () => {
+        lang = langSelect.value === "fr" ? "fr" : "en";
+        setCookie(cfg.cookieLang, lang);
+        applyI18n();
+        load();
+      });
+
+      applyI18n();
+      load();
+    </script>
+  </body>
+</html>

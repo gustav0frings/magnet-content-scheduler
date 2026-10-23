@@ -35,11 +35,17 @@ import {
   tzLabel,
 } from "../src/lib/slot-time";
 import {
+  extractPostizPostId,
   listPostizIntegrations,
   schedulePostizVideo,
   uploadToPostiz,
 } from "../src/lib/postiz";
-import { addItem, clearOlderThan, listItems } from "../src/lib/schedule";
+import {
+  addItem,
+  clearOlderThan,
+  listItems,
+  setPostizPostId,
+} from "../src/lib/schedule";
 
 const AUTO_CLEAR_DAYS = 7;
 
@@ -221,7 +227,13 @@ async function main() {
         media,
         integrationIdentifier: identifier,
       });
-      console.log(`  Postiz: scheduled`, posted);
+      const postizPostId = extractPostizPostId(posted);
+      if (postizPostId) {
+        await setPostizPostId(item.id, postizPostId);
+        console.log(`  Postiz: scheduled id=${postizPostId}`);
+      } else {
+        console.log(`  Postiz: scheduled`, posted);
+      }
     } catch (err) {
       console.error(
         `  Postiz: FAILED for ${d.id} (phone schedule still ok):`,

@@ -40,6 +40,7 @@ export function normalizeItem(
     deviceIds,
     deviceId,
     publishedAt: raw.publishedAt ?? null,
+    postizPostId: raw.postizPostId ?? null,
   };
 }
 
@@ -123,6 +124,18 @@ export async function setPublished(
   const item = items.find((i) => i.id === id);
   if (!item) return null;
   item.publishedAt = published ? new Date().toISOString() : null;
+  await saveItems(items);
+  return item;
+}
+
+export async function setPostizPostId(
+  id: string,
+  postizPostId: string | null,
+): Promise<ScheduleItem | null> {
+  const items = await listItems();
+  const item = items.find((i) => i.id === id);
+  if (!item) return null;
+  item.postizPostId = postizPostId;
   await saveItems(items);
   return item;
 }

@@ -53,6 +53,7 @@ const boot = {
           <div class="header-actions">
             <nav class="nav-links">
               <a href="/" class="nav-current" data-i18n="navCalendar">Calendar</a>
+              <a href="/performance" data-i18n="navPerformance">Performance</a>
               <a href="/accounts" data-i18n="navAccounts">Accounts</a>
             </nav>
             <button type="button" class="linkish" id="reopen-setup" data-i18n="changeSetup">
@@ -578,6 +579,14 @@ const boot = {
                 badge.textContent = flag(c);
                 meta.appendChild(badge);
               }
+              const onPostiz = linked.some((d) => d.postizIntegrationId);
+              if (onPostiz) {
+                const views = document.createElement("span");
+                views.className = "views is-loading";
+                views.dataset.viewsId = item.id;
+                views.textContent = m.viewsLoading;
+                meta.appendChild(views);
+              }
               if (item.savedAt) {
                 const saved = document.createElement("span");
                 saved.setAttribute("data-i18n", "saved");
@@ -650,6 +659,58 @@ const boot = {
         }
 
         updateWeekChrome();
+        queueMicrotask(() => loadViewsLazy());
+      }
+
+      function formatViews(n) {
+        try {
+          return new Intl.NumberFormat(localeFor(lang || "en"), {
+            notation: n >= 10000 ? "compact" : "standard",
+            maximumFractionDigits: 1,
+          }).format(n);
+        } catch {
+          return String(n);
+        }
+      }
+
+      let viewsAbort = null;
+      async function loadViewsLazy() {
+        const nodes = [...document.querySelectorAll("[data-views-id]")];
+        if (nodes.length === 0) return;
+        const ids = [...new Set(nodes.map((el) => el.dataset.viewsId).filter(Boolean))];
+        if (ids.length === 0) return;
+
+        if (viewsAbort) viewsAbort.abort();
+        viewsAbort = new AbortController();
+        try {
+          const res = await fetch(
+            `/api/analytics/views?ids=${encodeURIComponent(ids.join(","))}&days=7`,
+            { signal: viewsAbort.signal },
+          );
+          if (!res.ok) throw new Error(`views ${res.status}`);
+          const body = await res.json();
+          const byId = new Map((body.views || []).map((v) => [v.id, v]));
+          const m = t();
+          for (const el of nodes) {
+            const row = byId.get(el.dataset.viewsId);
+            el.classList.remove("is-loading");
+            if (!row || row.views == null) {
+              el.textContent =
+                row?.status === "pending" ? m.viewsPending : m.viewsUnavailable;
+              el.classList.add("is-empty");
+              continue;
+            }
+            el.classList.remove("is-empty");
+            el.textContent = fill(m.viewsLabel, { n: formatViews(row.views) });
+          }
+        } catch (err) {
+          if (err?.name === "AbortError") return;
+          for (const el of nodes) {
+            el.classList.remove("is-loading");
+            el.classList.add("is-empty");
+            el.textContent = t().viewsUnavailable;
+          }
+        }
       }
 
       function fill(template, vars) {

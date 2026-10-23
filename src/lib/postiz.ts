@@ -1,6 +1,7 @@
 /**
  * Postiz Public API helpers (schedule when an account is linked).
  * Docs: https://docs.postiz.com/public-api/introduction
+ * Analytics: https://docs.postiz.com/public-api/analytics/post
  */
 
 const POSTIZ_API = "https://api.postiz.com/public/v1";
@@ -17,6 +18,34 @@ export type PostizIntegration = {
   identifier?: string;
   picture?: string;
 };
+
+export type PostizPost = {
+  id: string;
+  content?: string;
+  publishDate?: string;
+  state?: string;
+  releaseURL?: string | null;
+  integration?: {
+    id: string;
+    name?: string;
+    providerIdentifier?: string;
+  };
+};
+
+export type PostizMetricPoint = {
+  total: string;
+  date: string;
+};
+
+export type PostizMetric = {
+  label: string;
+  data: PostizMetricPoint[];
+  percentageChange?: number;
+};
+
+export function hasPostizApiKey(): boolean {
+  return Boolean(process.env.POSTIZ_API_KEY?.trim());
+}
 
 function apiKey(): string {
   const key = process.env.POSTIZ_API_KEY?.trim();
@@ -101,15 +130,19 @@ export async function schedulePostizVideo(input: {
   if (__type === "instagram" || __type === "instagram-standalone") {
     settings.post_type = "post";
   }
-  if (__type === "tiktok") {
+  if (__type === "tiktok" || __type === "tiktok-business") {
     settings.privacy_level = "PUBLIC_TO_EVERYONE";
     settings.duet = false;
     settings.stitch = false;
     settings.comment = true;
-    settings.autoAddMusic = false;
+    // tiktok-business schema wants "yes"|"no"; legacy tiktok accepts bool — string is fine for both
+    settings.autoAddMusic = "no";
     settings.brand_content_toggle = false;
     settings.brand_organic_toggle = false;
     settings.content_posting_method = "DIRECT_POST";
+    if (__type === "tiktok-business") {
+      settings.video_made_with_ai = false;
+    }
   }
 
   const body = {
@@ -140,6 +173,99 @@ export async function schedulePostizVideo(input: {
     throw new Error(`Postiz schedule ${res.status}: ${await res.text()}`);
   }
   return res.json();
+}
+
+/** Extract the first Postiz post id from a schedule/create response. */
+export function extractPostizPostId(posted: unknown): string | null {
+  if (!posted || typeof posted !== "object") return null;
+  const root = posted as Record<string, unknown>;
+  if (typeof root.id === "string" && root.id) return root.id;
+  const posts = root.posts;
+  if (Array.isArray(posts) && posts[0] && typeof posts[0] === "object") {
+    const id = (posts[0] as { id?: string }).id;
+    if (typeof id === "string" && id) return id;
+  }
+  if (Array.isArray(posted) && posted[0] && typeof posted[0] === "object") {
+    const id = (posted[0] as { id?: string }).id;
+    if (typeof id === "string" && id) return id;
+  }
+  return null;
+}
+
+export async function listPostizPosts(
+  startDate: string,
+  endDate: string,
+): Promise<PostizPost[]> {
+  const qs = new URLSearchParams({ startDate, endDate });
+  const res = await postizFetch(`/posts?${qs}`);
+  if (!res.ok) {
+    throw new Error(`Postiz posts ${res.status}: ${await res.text()}`);
+  }
+  const body = (await res.json()) as PostizPost[] | { posts?: PostizPost[] };
+  if (Array.isArray(body)) return body;
+  return body.posts ?? [];
+}
+
+export async function getPostAnalytics(
+  postId: string,
+  days = 7,
+): Promise<PostizMetric[]> {
+  const qs = new URLSearchParams({ date: String(days) });
+  const res = await postizFetch(`/analytics/post/${encodeURIComponent(postId)}?${qs}`);
+  if (!res.ok) {
+    throw new Error(`Postiz post analytics ${res.status}: ${await res.text()}`);
+  }
+  const body = (await res.json()) as PostizMetric[] | { data?: PostizMetric[] };
+  if (Array.isArray(body)) return body;
+  return body.data ?? [];
+}
+
+export async function getPlatformAnalytics(
+  integrationId: string,
+  days = 7,
+): Promise<PostizMetric[]> {
+  const qs = new URLSearchParams({ date: String(days) });
+  const res = await postizFetch(
+    `/analytics/${encodeURIComponent(integrationId)}?${qs}`,
+  );
+  if (!res.ok) {
+    throw new Error(
+      `Postiz platform analytics ${res.status}: ${await res.text()}`,
+    );
+  }
+  const body = (await res.json()) as PostizMetric[] | { data?: PostizMetric[] };
+  if (Array.isArray(body)) return body;
+  return body.data ?? [];
+}
+
+const VIEW_LABELS = ["views", "view", "video views", "impressions", "plays"];
+
+/** Latest total for Views (or Impressions fallback). */
+export function extractViewsTotal(metrics: PostizMetric[]): number | null {
+  const metric = findMetric(metrics, VIEW_LABELS);
+  if (!metric?.data?.length) return null;
+  const last = metric.data[metric.data.length - 1];
+  const n = Number(last?.total);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Daily series for Views (or Impressions). Missing days omitted. */
+export function extractViewsSeries(
+  metrics: PostizMetric[],
+): { date: string; total: number }[] {
+  const metric = findMetric(metrics, VIEW_LABELS);
+  if (!metric?.data?.length) return [];
+  return metric.data
+    .map((p) => ({ date: p.date, total: Number(p.total) }))
+    .filter((p) => p.date && Number.isFinite(p.total));
+}
+
+function findMetric(
+  metrics: PostizMetric[],
+  labels: string[],
+): PostizMetric | undefined {
+  const wanted = new Set(labels.map((l) => l.toLowerCase()));
+  return metrics.find((m) => wanted.has(String(m.label ?? "").toLowerCase()));
 }
 
 function escapeHtml(s: string): string {

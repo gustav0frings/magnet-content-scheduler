@@ -19,15 +19,17 @@ npm run dev
 | Variable | Required | Where |
 | --- | --- | --- |
 | `UPLOADTHING_TOKEN` | **Yes** (CLI push + Vercel) | Same token as Astro — UploadThing dashboard → API keys |
+| `POSTIZ_API_KEY` | Dual-schedule + analytics | CLI `.env` **and** Vercel (calendar views, `/performance`) |
 | `INBOX_SECRET` | No | Only if you call `POST /api/items` over HTTP |
 
 ```bash
 # .env
 UPLOADTHING_TOKEN=eyJ…
+POSTIZ_API_KEY=…   # also set on Vercel for views / performance
 # INBOX_SECRET=…   # optional
 ```
 
-On Vercel: set `UPLOADTHING_TOKEN`. Framework Astro, root `/`.
+On Vercel: set `UPLOADTHING_TOKEN` + `POSTIZ_API_KEY`. Framework Astro, root `/`.
 
 Edit phones in `src/lib/devices.ts`.
 

@@ -522,6 +522,18 @@ a.account-with-icon:hover {
   color: var(--muted);
 }
 
+.card .meta .views {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.card .meta .views.is-loading,
+.card .meta .views.is-empty {
+  color: var(--muted);
+  font-weight: 400;
+}
+
 .card .meta .device-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -982,4 +994,91 @@ button.primary:disabled {
   margin: 0;
   color: var(--us);
   font-size: 0.85rem;
+}
+
+/* —— Performance —— */
+.performance-page .wrap,
+.wrap.performance-page {
+  max-width: 760px;
+}
+
+.perf-status {
+  margin: 1rem 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.perf-charts {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.perf-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem 1rem 0.75rem;
+}
+
+.perf-card-total {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.perf-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.perf-card-head h2 {
+  margin: 0;
+  font-family: "IBM Plex Serif", Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.perf-platform {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-left: 0.35rem;
+}
+
+.perf-total {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.perf-total span {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--muted);
+  text-transform: lowercase;
+}
+
+.perf-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 0.25rem;
+}
+
+.chart-tick {
+  fill: var(--muted);
+  font-size: 10px;
+  font-family: "IBM Plex Sans", sans-serif;
+}
+
+.chart-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
 }
