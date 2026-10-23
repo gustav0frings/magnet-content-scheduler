@@ -9,7 +9,14 @@ import {
   countryFlag,
   listDevices,
 } from "../lib/devices";
-import { COOKIE_DEVICE, COOKIE_LANG, messages, UI_LANGS } from "../lib/i18n";
+import {
+  COOKIE_DEVICE,
+  COOKIE_LANG,
+  DEVICE_ALL,
+  STORAGE_DEVICES,
+  messages,
+  UI_LANGS,
+} from "../lib/i18n";
 import { PLATFORM_ICON } from "../lib/platform-icons";
 import { listItems } from "../lib/schedule";
 
@@ -27,6 +34,8 @@ const boot = {
   messages,
   cookieLang: COOKIE_LANG,
   cookieDevice: COOKIE_DEVICE,
+  storageDevices: STORAGE_DEVICES,
+  deviceAll: DEVICE_ALL,
 };
 ---
 
@@ -735,10 +744,62 @@ const boot = {
         return lang === "fr" ? "fr-FR" : "en-GB";
       }
 
+      function parseDeviceCookie(raw) {
+        const s = String(raw || "").trim();
+        if (!s || s === cfg.deviceAll) return [];
+        return [
+          ...new Set(
+            s
+              .split(",")
+              .map((x) => x.trim())
+              .filter(Boolean),
+          ),
+        ];
+      }
+
+      function serializeDeviceIds(ids) {
+        return [...new Set(ids.filter(Boolean))].join(",");
+      }
+
+      /** Persist multi-select: localStorage (source of truth) + cookie (setup gate). */
+      function saveDeviceSelection(ids) {
+        const known = knownDeviceIds(ids);
+        const raw =
+          known.length === 0 ? cfg.deviceAll : serializeDeviceIds(known);
+        try {
+          localStorage.setItem(cfg.storageDevices, raw);
+        } catch {
+          /* private mode */
+        }
+        setCookie(cfg.cookieDevice, raw);
+        return known;
+      }
+
+      function loadDeviceSelection() {
+        let raw = "";
+        try {
+          raw = localStorage.getItem(cfg.storageDevices) || "";
+        } catch {
+          /* ignore */
+        }
+        if (!raw) raw = getCookie(cfg.cookieDevice) || "";
+        if (!raw || raw === cfg.deviceAll) return [];
+        return knownDeviceIds(parseDeviceCookie(raw));
+      }
+
+      function hasDeviceSelectionSaved() {
+        try {
+          if (localStorage.getItem(cfg.storageDevices)) return true;
+        } catch {
+          /* ignore */
+        }
+        return Boolean(getCookie(cfg.cookieDevice));
+      }
+
       let lang = getCookie(cfg.cookieLang) === "fr" ? "fr" : getCookie(cfg.cookieLang) === "en" ? "en" : "";
-      let deviceIds = parseDeviceCookie(getCookie(cfg.cookieDevice));
+      let deviceIds = [];
       let pendingLang = lang || "en";
-      let pendingDevice = deviceIds[0] || "";
+      let pendingDevice = "";
 
       const app = document.getElementById("app");
       const modal = document.getElementById("setup-modal");
@@ -771,24 +832,12 @@ const boot = {
       const regBack = document.getElementById("reg-back");
       const regError = document.getElementById("reg-error");
 
-      function parseDeviceCookie(raw) {
-        return [
-          ...new Set(
-            String(raw || "")
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean),
-          ),
-        ];
-      }
-
-      function serializeDeviceIds(ids) {
-        return [...new Set(ids.filter(Boolean))].join(",");
-      }
-
       function knownDeviceIds(ids) {
         return ids.filter((id) => devices.some((d) => d.id === id));
       }
+
+      deviceIds = loadDeviceSelection();
+      pendingDevice = deviceIds[0] || "";
 
       const deviceSelect = {
         get values() {
@@ -1035,9 +1084,8 @@ const boot = {
       }
 
       function finishWithDevice(id) {
-        deviceIds = id ? [id] : [];
-        pendingDevice = id;
-        if (id) setCookie(cfg.cookieDevice, id);
+        deviceIds = id ? saveDeviceSelection([id]) : saveDeviceSelection([]);
+        pendingDevice = id || "";
         showApp();
       }
 
@@ -1045,13 +1093,10 @@ const boot = {
         modal.hidden = true;
         app.hidden = false;
         syncDeviceSelect();
-        // Default view = cookie devices (multi). User can still pick "all".
-        const saved = knownDeviceIds(
-          parseDeviceCookie(getCookie(cfg.cookieDevice) || serializeDeviceIds(deviceIds)),
-        );
+        const saved = loadDeviceSelection();
+        deviceSelect.values = saved;
+        deviceIds = saved;
         if (saved.length > 0) {
-          deviceSelect.values = saved;
-          deviceIds = saved;
           const countries = [
             ...new Set(
               saved
@@ -1061,9 +1106,7 @@ const boot = {
           ];
           countrySelect.value = countries.length === 1 ? countries[0] : "";
         } else {
-          deviceSelect.values = [];
           countrySelect.value = "";
-          deviceIds = [];
         }
         renderCalendar();
         applyI18n();
@@ -1072,7 +1115,7 @@ const boot = {
 
       function openSetup(force = false) {
         const needLang = force || !getCookie(cfg.cookieLang);
-        const needDevice = force || !getCookie(cfg.cookieDevice);
+        const needDevice = force || !hasDeviceSelectionSaved();
         if (!needLang && !needDevice && !force) {
           showApp();
           return;
@@ -1216,20 +1259,23 @@ const boot = {
 
       devicePickerOk.addEventListener("click", (event) => {
         event.stopPropagation();
+        deviceIds = saveDeviceSelection(deviceSelect.values);
         closeAccountPicker();
+        applyFilters();
       });
 
       document.addEventListener("click", (event) => {
-        if (!devicePicker.contains(event.target)) closeAccountPicker();
+        if (!devicePicker.contains(event.target)) {
+          // Persist even if the menu is closed by clicking outside (no OK).
+          if (!devicePickerMenu.hidden) {
+            deviceIds = saveDeviceSelection(deviceSelect.values);
+          }
+          closeAccountPicker();
+        }
       });
 
       deviceInput.addEventListener("change", () => {
-        deviceIds = deviceSelect.values;
-        // Persist the selection; keep at least one id in the cookie so setup
-        // is not re-prompted when the view is "all accounts".
-        if (deviceIds.length > 0) {
-          setCookie(cfg.cookieDevice, serializeDeviceIds(deviceIds));
-        }
+        deviceIds = saveDeviceSelection(deviceSelect.values);
         const countries = [
           ...new Set(
             deviceIds
@@ -1278,12 +1324,12 @@ const boot = {
         openSetup(true);
       });
 
-      if (!getCookie(cfg.cookieLang) || !getCookie(cfg.cookieDevice)) {
+      if (!getCookie(cfg.cookieLang) || !hasDeviceSelectionSaved()) {
         openSetup(false);
       } else {
         lang = getCookie(cfg.cookieLang) === "fr" ? "fr" : "en";
-        deviceIds = parseDeviceCookie(getCookie(cfg.cookieDevice));
-        showApp(); // filters on cookie devices by default
+        deviceIds = loadDeviceSelection();
+        showApp();
       }
     </script>
   </body>

@@ -7,6 +7,10 @@ export const UI_LANGS: { id: UiLang; label: string }[] = [
 
 export const COOKIE_LANG = "magnet_scheduler_lang";
 export const COOKIE_DEVICE = "magnet_scheduler_device";
+/** localStorage key for multi-account calendar filter (source of truth). */
+export const STORAGE_DEVICES = "magnet_scheduler_devices";
+/** Cookie / storage sentinel = show all accounts. */
+export const DEVICE_ALL = "*";
 
 export const messages = {
   en: {
