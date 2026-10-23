@@ -63,7 +63,7 @@ const boot = {
       </header>
 
       <div class="pickers">
-        <label class="field">
+        <div class="field">
           <span data-i18n="device">Account</span>
           <div class="account-picker" id="device-picker">
             <button
@@ -76,16 +76,27 @@ const boot = {
             >
               <span class="account-picker-current" id="device-picker-current"></span>
             </button>
-            <ul
-              class="account-picker-menu"
-              id="device-picker-menu"
-              role="listbox"
-              aria-multiselectable="true"
-              hidden
-            ></ul>
+            <div class="account-picker-menu" id="device-picker-menu" hidden>
+              <ul
+                class="account-picker-list"
+                id="device-picker-list"
+                role="listbox"
+                aria-multiselectable="true"
+              ></ul>
+              <div class="account-picker-footer">
+                <button
+                  type="button"
+                  class="account-picker-ok"
+                  id="device-picker-ok"
+                  data-i18n="devicePickerOk"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
             <input type="hidden" id="device" value="" />
           </div>
-        </label>
+        </div>
         <label class="field">
           <span data-i18n="language">Language</span>
           <select id="lang" aria-label="Language">
@@ -670,6 +681,8 @@ const boot = {
       const devicePickerBtn = document.getElementById("device-picker-btn");
       const devicePickerCurrent = document.getElementById("device-picker-current");
       const devicePickerMenu = document.getElementById("device-picker-menu");
+      const devicePickerList = document.getElementById("device-picker-list");
+      const devicePickerOk = document.getElementById("device-picker-ok");
       const countrySelect = document.getElementById("country");
       const langSelect = document.getElementById("lang");
       const hint = document.getElementById("range-hint");
@@ -775,7 +788,7 @@ const boot = {
         const ids = knownDeviceIds(Array.isArray(next) ? next : parseDeviceCookie(next));
         deviceInput.value = serializeDeviceIds(ids);
         fillAccountPickerSummary(devicePickerCurrent, ids);
-        devicePickerMenu.querySelectorAll("[role=option]").forEach((opt) => {
+        devicePickerList.querySelectorAll("[role=option]").forEach((opt) => {
           const value = opt.dataset.value || "";
           const selected =
             value === "" ? ids.length === 0 : ids.includes(value);
@@ -789,21 +802,21 @@ const boot = {
       function syncDeviceSelect() {
         const raw = parseDeviceCookie(deviceInput.value);
         const current = knownDeviceIds(raw);
-        devicePickerMenu.innerHTML = "";
+        devicePickerList.innerHTML = "";
 
         const allOpt = document.createElement("li");
         allOpt.setAttribute("role", "option");
         allOpt.dataset.value = "";
         allOpt.setAttribute("data-i18n-option", "allDevices");
         allOpt.textContent = t().allDevices;
-        devicePickerMenu.appendChild(allOpt);
+        devicePickerList.appendChild(allOpt);
 
         for (const d of devices) {
           const opt = document.createElement("li");
           opt.setAttribute("role", "option");
           opt.dataset.value = d.id;
           fillAccountPickerRow(opt, d);
-          devicePickerMenu.appendChild(opt);
+          devicePickerList.appendChild(opt);
         }
 
         // Empty input = "all accounts". Only fall back when stale ids remain.
@@ -1095,7 +1108,8 @@ const boot = {
         finishWithDevice(pendingDevice);
       });
 
-      devicePickerBtn.addEventListener("click", () => {
+      devicePickerBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
         const open = devicePickerMenu.hidden;
         if (open) {
           devicePickerMenu.hidden = false;
@@ -1105,7 +1119,12 @@ const boot = {
         }
       });
 
+      // Keep the menu open while toggling options; close via OK or outside click.
       devicePickerMenu.addEventListener("click", (event) => {
+        event.stopPropagation();
+      });
+
+      devicePickerList.addEventListener("click", (event) => {
         const opt = event.target.closest("[role=option]");
         if (!opt) return;
         const value = opt.dataset.value || "";
@@ -1118,6 +1137,11 @@ const boot = {
           ? current.filter((id) => id !== value)
           : [...current, value];
         setAccountPickerValues(next);
+      });
+
+      devicePickerOk.addEventListener("click", (event) => {
+        event.stopPropagation();
+        closeAccountPicker();
       });
 
       document.addEventListener("click", (event) => {
