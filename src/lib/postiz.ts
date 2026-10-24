@@ -192,6 +192,15 @@ export function extractPostizPostId(posted: unknown): string | null {
   return null;
 }
 
+export async function deletePostizPost(postId: string): Promise<void> {
+  const res = await postizFetch(`/posts/${encodeURIComponent(postId)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    throw new Error(`Postiz delete ${res.status}: ${await res.text()}`);
+  }
+}
+
 export async function listPostizPosts(
   startDate: string,
   endDate: string,
