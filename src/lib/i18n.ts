@@ -63,6 +63,8 @@ export const messages = {
     viewsUnavailable: "—",
     performanceTitle: "Performance",
     performanceSubtitle: "Views from Postiz.",
+    performanceCallout:
+      "Views come from Postiz — TikTok / Instagram analytics on each published post (organic only, ads excluded). UploadThing only hosts the mp4; it does not count views.",
     performanceTotal: "All creators",
     performanceEmpty: "No Postiz analytics yet. Link accounts and set POSTIZ_API_KEY on Vercel.",
     performanceLoading: "Loading charts…",
@@ -149,6 +151,8 @@ export const messages = {
     viewsUnavailable: "—",
     performanceTitle: "Performance",
     performanceSubtitle: "Vues via Postiz.",
+    performanceCallout:
+      "Les vues viennent de Postiz — analytics TikTok / Instagram de chaque post publié (organique seulement, pubs exclues). UploadThing héberge seulement le mp4 ; il ne compte pas les vues.",
     performanceTotal: "Tous les créateurs",
     performanceEmpty: "Pas encore d’analytics Postiz. Lie les comptes et mets POSTIZ_API_KEY sur Vercel.",
     performanceLoading: "Chargement des charts…",
