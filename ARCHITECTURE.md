@@ -60,8 +60,10 @@ npm run send -- --to yanndatingcoach-fr --at "2026-10-21 09:00" --title "…" ./
 1. SHA-256 du mp4 → refuse si les **mêmes bits** sont déjà au schedule sur le même compte ou un autre compte de la **même plateforme** (TT×TT / IG×IG). TT + IG avec le même fichier = OK. Couvre le calendrier téléphone **et** le dual-schedule Postiz (refus avant tout upload).
 2. Upload mp4 → UploadThing.
 3. Append `magnet-schedule.json` (champ `contentHash`).
-4. Si Postiz lié + `POSTIZ_API_KEY` → upload + `POST /public/v1/posts` au même `publishAt`.
+4. Si Postiz lié + `POSTIZ_API_KEY` → upload + `POST /public/v1/posts` au même `publishAt`, caption = `--title` + `#tinder` (`formatPostizCaption`).
 5. Webapp relit le JSON. Aucun redeploy.
+
+**Caption Postiz** : toujours le titre de la vidéo puis `#tinder` (deux paragraphes). Rafraîchir la queue entière : `npx tsx scripts/refresh-postiz-captions.ts` (supprime les QUEUE des comptes liés, puis `sync-postiz --keep-times`).
 
 **Anti-doublon** : Postiz n’expose pas de hash média — la source de vérité est `contentHash` dans le schedule. Toujours passer par `npm run send` (pas un schedule Postiz MCP seul) pour garder la dédup.
 

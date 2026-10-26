@@ -36,6 +36,7 @@ import {
 } from "../src/lib/slot-time";
 import {
   extractPostizPostId,
+  formatPostizCaption,
   listPostizIntegrations,
   schedulePostizVideo,
   uploadToPostiz,
@@ -223,7 +224,7 @@ async function main() {
         integrationId: d.postizIntegrationId!,
         platform: d.platform,
         publishAt: publishAt.toISOString(),
-        content: title,
+        content: formatPostizCaption(title),
         media,
         integrationIdentifier: identifier,
       });

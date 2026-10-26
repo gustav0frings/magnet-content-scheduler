@@ -108,6 +108,27 @@ export async function uploadToPostiz(
   return data;
 }
 
+/**
+ * Caption Postiz from the schedule `--title`.
+ * Always includes the video title + `#tinder` (unless already present).
+ */
+export function formatPostizCaption(title: string): string {
+  const t = title.trim();
+  if (!t) return "#tinder";
+  if (/(^|\s)#tinder\b/i.test(t)) return t;
+  return `${t}\n\n#tinder`;
+}
+
+/** Plain caption → one `<p>` per non-empty line (keeps `#tinder` on its own line). */
+function plainCaptionToHtml(plain: string): string {
+  const parts = plain
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return "<p> </p>";
+  return parts.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+}
+
 export async function schedulePostizVideo(input: {
   integrationId: string;
   platform: "instagram" | "tiktok";
@@ -124,7 +145,7 @@ export async function schedulePostizVideo(input: {
   );
   const content = input.content.trim().startsWith("<")
     ? input.content.trim()
-    : `<p>${escapeHtml(input.content.trim() || " ")}</p>`;
+    : plainCaptionToHtml(input.content.trim() || " ");
 
   const settings: Record<string, unknown> = { __type };
   if (__type === "instagram" || __type === "instagram-standalone") {
@@ -177,17 +198,27 @@ export async function schedulePostizVideo(input: {
 
 /** Extract the first Postiz post id from a schedule/create response. */
 export function extractPostizPostId(posted: unknown): string | null {
+  const fromObj = (o: Record<string, unknown>): string | null => {
+    for (const key of ["id", "postId", "post_id"] as const) {
+      const v = o[key];
+      if (typeof v === "string" && v) return v;
+    }
+    return null;
+  };
+
   if (!posted || typeof posted !== "object") return null;
+  if (Array.isArray(posted)) {
+    if (posted[0] && typeof posted[0] === "object") {
+      return fromObj(posted[0] as Record<string, unknown>);
+    }
+    return null;
+  }
   const root = posted as Record<string, unknown>;
-  if (typeof root.id === "string" && root.id) return root.id;
+  const direct = fromObj(root);
+  if (direct) return direct;
   const posts = root.posts;
   if (Array.isArray(posts) && posts[0] && typeof posts[0] === "object") {
-    const id = (posts[0] as { id?: string }).id;
-    if (typeof id === "string" && id) return id;
-  }
-  if (Array.isArray(posted) && posted[0] && typeof posted[0] === "object") {
-    const id = (posted[0] as { id?: string }).id;
-    if (typeof id === "string" && id) return id;
+    return fromObj(posts[0] as Record<string, unknown>);
   }
   return null;
 }

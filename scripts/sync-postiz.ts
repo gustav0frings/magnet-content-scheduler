@@ -15,7 +15,9 @@ import "dotenv/config";
 import { parseArgs } from "node:util";
 import { isOnPostiz, listDevices } from "../src/lib/devices";
 import {
+  deletePostizPost,
   extractPostizPostId,
+  formatPostizCaption,
   listPostizIntegrations,
   schedulePostizVideo,
   uploadToPostiz,
@@ -133,15 +135,28 @@ async function main() {
       `\n→ ${formatLocalAt(new Date(p.publishAt), device.country)}  ${p.title}`,
     );
     try {
+      const row = all.find((i) => i.id === p.id);
+      if (row?.postizPostId) {
+        try {
+          await deletePostizPost(row.postizPostId);
+          console.log(`  deleted old Postiz ${row.postizPostId}`);
+        } catch (err) {
+          console.warn(`  delete old Postiz failed (continuing):`, err);
+        }
+        row.postizPostId = null;
+      }
+
       const buf = await download(p.url);
       console.log(`  download ${(buf.byteLength / 1024 / 1024).toFixed(1)} MB…`);
       const media = await uploadToPostiz(buf, `${p.id}.mp4`);
       console.log(`  postiz media ${media.id}`);
+      const caption = formatPostizCaption(p.title);
+      console.log(`  caption: ${caption.replace(/\n+/g, " / ")}`);
       const posted = await schedulePostizVideo({
         integrationId: device.postizIntegrationId!,
         platform: device.platform,
         publishAt: p.publishAt,
-        content: p.title,
+        content: caption,
         media,
         integrationIdentifier: identifier,
       });
@@ -152,7 +167,6 @@ async function main() {
         console.log(`  postiz ok`, posted);
       }
 
-      const row = all.find((i) => i.id === p.id);
       if (row) {
         row.publishAt = p.publishAt;
         if (postizPostId) row.postizPostId = postizPostId;
