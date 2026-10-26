@@ -744,15 +744,43 @@ button.publish-toggle:disabled {
   justify-content: flex-end;
 }
 
-.check-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 0.85rem;
-  color: var(--text);
+.warmup-toggle {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0.15rem 0.25rem;
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1;
   cursor: pointer;
+  border-radius: 6px;
+  filter: grayscale(1);
+  opacity: 0.35;
+  transition: filter 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+}
+
+.warmup-toggle:hover:not(:disabled) {
+  opacity: 0.55;
+  transform: scale(1.08);
+}
+
+.warmup-toggle.is-on {
+  filter: none;
+  opacity: 1;
+}
+
+.warmup-toggle.is-on:hover:not(:disabled) {
+  opacity: 1;
+}
+
+.warmup-toggle:disabled {
+  cursor: wait;
+  opacity: 0.25;
+}
+
+.warmup-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .accounts-table-wrap {
@@ -822,6 +850,10 @@ button.publish-toggle:disabled {
 .accounts-table .account-warmup-cell {
   text-align: center;
   width: 3rem;
+}
+
+.accounts-table .account-warmup-cell .warmup-toggle {
+  font-size: 1.15rem;
 }
 
 .accounts-table .account-days {

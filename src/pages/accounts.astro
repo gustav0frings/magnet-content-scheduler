@@ -91,10 +91,17 @@ const boot = {
           </label>
           <label class="field field-check">
             <span data-i18n="accountWarmup">Warm-up</span>
-            <label class="check-row">
-              <input id="add-warmup" type="checkbox" />
-              <span data-i18n="accountWarmupOn">In warm-up</span>
-            </label>
+            <button
+              type="button"
+              id="add-warmup"
+              class="warmup-toggle"
+              aria-pressed="false"
+              data-i18n-title-off="accountWarmupOff"
+              data-i18n-title-on="accountWarmupOn"
+              title="Not in warm-up"
+            >
+              🔥
+            </button>
           </label>
           <label class="field" id="add-warmup-date-field" hidden>
             <span data-i18n="accountWarmupStart">Start date</span>
@@ -218,6 +225,16 @@ const boot = {
       const addWarmupDate = document.getElementById("add-warmup-date");
       const addError = document.getElementById("add-error");
 
+      function warmupOn(btn) {
+        return btn.getAttribute("aria-pressed") === "true";
+      }
+
+      function setWarmupToggle(btn, on, m) {
+        btn.classList.toggle("is-on", on);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+        btn.title = on ? m.accountWarmupOn : m.accountWarmupOff;
+      }
+
       function applyI18n() {
         const m = t();
         document.documentElement.lang = lang;
@@ -228,6 +245,9 @@ const boot = {
         document.querySelectorAll("[data-i18n-option]").forEach((el) => {
           const key = el.getAttribute("data-i18n-option");
           if (typeof m[key] === "string") el.textContent = m[key];
+        });
+        document.querySelectorAll(".warmup-toggle").forEach((el) => {
+          setWarmupToggle(el, warmupOn(el), m);
         });
         if (langSelect) langSelect.value = lang;
       }
@@ -347,11 +367,12 @@ const boot = {
 
           const warmupTd = document.createElement("td");
           warmupTd.className = "account-warmup-cell";
-          const check = document.createElement("input");
-          check.type = "checkbox";
-          check.checked = Boolean(account.warmupStartedAt);
-          check.title = check.checked ? m.accountWarmupOn : m.accountWarmupOff;
-          warmupTd.appendChild(check);
+          const flame = document.createElement("button");
+          flame.type = "button";
+          flame.className = "warmup-toggle";
+          flame.textContent = "🔥";
+          setWarmupToggle(flame, Boolean(account.warmupStartedAt), m);
+          warmupTd.appendChild(flame);
           tr.appendChild(warmupTd);
 
           const dateTd = document.createElement("td");
@@ -369,7 +390,7 @@ const boot = {
           tr.appendChild(daysTd);
 
           async function saveWarmup(startedAt) {
-            check.disabled = true;
+            flame.disabled = true;
             dateInput.disabled = true;
             try {
               const updated = await patchDevice(account.id, {
@@ -379,32 +400,31 @@ const boot = {
               const n = dayCount(account.warmupStartedAt);
               daysTd.className = n != null ? "account-days is-on" : "account-days";
               daysTd.textContent = n != null ? fill(m.accountDays, { n: String(n) }) : "—";
-              check.checked = Boolean(account.warmupStartedAt);
-              check.title = check.checked ? m.accountWarmupOn : m.accountWarmupOff;
+              setWarmupToggle(flame, Boolean(account.warmupStartedAt), m);
               dateInput.value = account.warmupStartedAt || "";
               dateInput.disabled = !account.warmupStartedAt;
             } catch {
-              check.checked = Boolean(account.warmupStartedAt);
+              setWarmupToggle(flame, Boolean(account.warmupStartedAt), m);
               dateInput.value = account.warmupStartedAt || "";
               dateInput.disabled = !account.warmupStartedAt;
               alert(m.accountSaveError);
             } finally {
-              check.disabled = false;
+              flame.disabled = false;
               if (account.warmupStartedAt) dateInput.disabled = false;
             }
           }
 
-          check.addEventListener("change", () => {
-            if (check.checked) {
+          flame.addEventListener("click", () => {
+            if (warmupOn(flame)) {
+              saveWarmup(null);
+            } else {
               dateInput.disabled = false;
               if (!dateInput.value) dateInput.value = todayKey();
               saveWarmup(dateInput.value);
-            } else {
-              saveWarmup(null);
             }
           });
           dateInput.addEventListener("change", () => {
-            if (!check.checked) return;
+            if (!warmupOn(flame)) return;
             saveWarmup(dateInput.value || todayKey());
           });
 
@@ -439,9 +459,11 @@ const boot = {
         }
       }
 
-      addWarmup.addEventListener("change", () => {
-        addWarmupDateField.hidden = !addWarmup.checked;
-        if (addWarmup.checked && !addWarmupDate.value) {
+      addWarmup.addEventListener("click", () => {
+        const on = !warmupOn(addWarmup);
+        setWarmupToggle(addWarmup, on, t());
+        addWarmupDateField.hidden = !on;
+        if (on && !addWarmupDate.value) {
           addWarmupDate.value = todayKey();
         }
       });
@@ -461,7 +483,7 @@ const boot = {
               name,
               platform: addPlatform.value,
               country: addCountry.value,
-              warmupStartedAt: addWarmup.checked
+              warmupStartedAt: warmupOn(addWarmup)
                 ? addWarmupDate.value || todayKey()
                 : null,
             }),
@@ -472,7 +494,7 @@ const boot = {
           devices.sort((a, b) => a.name.localeCompare(b.name));
           addName.value = "";
           addPlatform.value = "tiktok";
-          addWarmup.checked = false;
+          setWarmupToggle(addWarmup, false, t());
           addWarmupDateField.hidden = true;
           addWarmupDate.value = "";
           renderList();
