@@ -1,15 +1,16 @@
 import { DEVICES_FILE, readJsonFile, uploadJsonFile } from "./uploadthing";
 
-export type CountryCode = "FR" | "US" | "UK";
+export type CountryCode = "FR" | "US" | "UK" | "ES";
 export type AccountPlatform = "instagram" | "tiktok";
 
-export const COUNTRY_CODES: CountryCode[] = ["FR", "US", "UK"];
+export const COUNTRY_CODES: CountryCode[] = ["FR", "US", "UK", "ES"];
 export const ACCOUNT_PLATFORMS: AccountPlatform[] = ["instagram", "tiktok"];
 
 export const COUNTRY_FLAGS: Record<CountryCode, string> = {
   FR: "🇫🇷",
   US: "🇺🇸",
   UK: "🇬🇧",
+  ES: "🇪🇸",
 };
 
 export function countryFlag(country: string): string {

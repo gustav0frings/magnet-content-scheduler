@@ -1,6 +1,6 @@
 /**
  * Local wall-clock helpers for schedule slots.
- * FR → Europe/Paris, US → America/New_York (ET), UK → Europe/London.
+ * FR → Europe/Paris, US → America/New_York (ET), UK → Europe/London, ES → Europe/Madrid.
  * Slots are always 09:00 and 19:00 in that timezone.
  */
 
@@ -12,6 +12,7 @@ export const TZ_BY_COUNTRY: Record<CountryCode, string> = {
   FR: "Europe/Paris",
   US: "America/New_York",
   UK: "Europe/London",
+  ES: "Europe/Madrid",
 };
 
 export function tzForCountry(country: CountryCode | string): string {
